@@ -11,7 +11,7 @@ export default function ShiftsSummaryWidgets({ shifts }: Props) {
   const total = shifts.length;
   const active = shifts.filter((s) => s.status === 'Active').length;
   const inactive = total - active;
-  const assigned = shifts.reduce((sum, s) => sum + s.assignedCount, 0);
+  const assigned = shifts.reduce((sum, s) => sum + (s.assignedCount ?? 0), 0);
 
   const widgets: Array<{ label: string; value: number; icon: LucideIcon; color: string }> = [
     { label: 'Total Shifts', value: total, icon: Layers, color: 'bg-[#94cb3d]/10 text-[#94cb3d]' },

@@ -11,6 +11,8 @@ interface EmployeeFiltersProps {
   onDesignationChange: (value: string) => void;
   employmentType: string;
   onEmploymentTypeChange: (value: string) => void;
+  role: string;
+  onRoleChange: (value: string) => void;
   status: string;
   onStatusChange: (value: string) => void;
   onClearFilters: () => void;
@@ -25,11 +27,13 @@ export default function EmployeeFilters({
   onDesignationChange,
   employmentType,
   onEmploymentTypeChange,
+  role,
+  onRoleChange,
   status,
   onStatusChange,
   onClearFilters,
 }: EmployeeFiltersProps) {
-  const hasActiveFilters = department || designation || employmentType || status || searchTerm;
+  const hasActiveFilters = department || designation || employmentType || role || status || searchTerm;
 
   return (
     <div className="space-y-4">
@@ -92,6 +96,20 @@ export default function EmployeeFilters({
           <option value="part-time">Part-time</option>
           <option value="contract">Contract</option>
           <option value="internship">Internship</option>
+        </select>
+
+        {/* Role Filter */}
+        <select
+          value={role}
+          onChange={(e) => onRoleChange(e.target.value)}
+          className="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#94cb3d]"
+        >
+          <option value="">All Roles</option>
+          <option value="superadmin">Super Admin</option>
+          <option value="manager">Manager</option>
+          <option value="employee">Employee</option>
+          <option value="accounts">Accounts</option>
+          <option value="support">Support</option>
         </select>
 
         {/* Status Filter */}

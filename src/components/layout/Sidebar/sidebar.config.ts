@@ -144,21 +144,26 @@ export const hrManagerNavigation: NavItem[] = [
     permission: 'team',
     children: [
       { name: 'Employees List', href: '/dashboard/hr_manager/:userId/employees', icon: Users },
-      { name: 'Attendance', href: '/dashboard/hr_manager/:userId/employees/attendance', icon: Clock },
+      { name: 'Attendance', href: '/dashboard/hr_manager/:userId/attendance', icon: Clock },
       { name: 'Leaves', href: '/dashboard/hr_manager/:userId/employees/leaves', icon: ClipboardList },
       { name: 'Performance', href: '/dashboard/hr_manager/:userId/employees/performance', icon: Target },
     ],
   },
   {
-    name: 'Attendance',
-    href: '/dashboard/hr_manager/:userId/attendance',
-    icon: Clock,
-    permission: 'attendance',
-    children: [
-      { name: 'Attendance', href: '/dashboard/hr_manager/:userId/attendance', icon: Clock },
-      { name: 'Overtime', href: '/dashboard/hr_manager/:userId/attendance/overtime', icon: Clock },
-    ],
+    name: 'Profile',
+    href: '/dashboard/hr_manager/:userId/profile',
+    icon: Users,
   },
+  // {
+  //   name: 'Attendance',
+  //   href: '/dashboard/hr_manager/:userId/attendance',
+  //   icon: Clock,
+  //   permission: 'attendance',
+  //   children: [
+  //     { name: 'Attendance', href: '/dashboard/hr_manager/:userId/attendance', icon: Clock },
+  //     { name: 'Overtime', href: '/dashboard/hr_manager/:userId/attendance/overtime', icon: Clock },
+  //   ],
+  // },
   {
     name: 'Leave',
     href: '/dashboard/hr_manager/:userId/leave',

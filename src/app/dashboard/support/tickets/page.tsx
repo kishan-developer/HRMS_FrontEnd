@@ -1,8 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Filter, Plus, Download, MoreVertical } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Plus, Filter, Download, MoreVertical } from 'lucide-react';
 import Button from '@/components/ui/Button/Button';
+import { api } from '@/services/api';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
+import EmptyState from '@/components/ui/EmptyState';
+import ErrorState from '@/components/ui/ErrorState';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 interface Ticket {
   id: string;
@@ -19,40 +24,39 @@ export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [priorityFilter, setPriorityFilter] = useState<string>('All');
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const mockTickets: Ticket[] = [
-    { id: 'TKT-001', title: 'Login authentication issue', category: 'Technical', priority: 'High', status: 'Open', assignedTo: 'John Doe', createdBy: 'Alice Smith', createdAt: '2024-01-15' },
-    { id: 'TKT-002', title: 'Payroll discrepancy query', category: 'Payroll', priority: 'Medium', status: 'In Progress', assignedTo: 'Jane Smith', createdBy: 'Bob Johnson', createdAt: '2024-01-15' },
-    { id: 'TKT-003', title: 'Leave balance not updating', category: 'HR', priority: 'High', status: 'Open', assignedTo: 'Mike Wilson', createdBy: 'Charlie Brown', createdAt: '2024-01-14' },
-    { id: 'TKT-004', title: 'Mobile app crash on iOS', category: 'Technical', priority: 'Urgent', status: 'In Progress', assignedTo: 'Sarah Davis', createdBy: 'Diana Prince', createdAt: '2024-01-14' },
-    { id: 'TKT-005', title: 'Document upload failed', category: 'IT', priority: 'Low', status: 'Resolved', assignedTo: 'Tom Hardy', createdBy: 'Eva Green', createdAt: '2024-01-13' },
-    { id: 'TKT-006', title: 'Profile update request', category: 'HR', priority: 'Medium', status: 'Pending', createdBy: 'Frank Miller', createdAt: '2024-01-13' },
-    { id: 'TKT-007', title: 'Attendance device not syncing', category: 'Technical', priority: 'High', status: 'Open', assignedTo: 'John Doe', createdBy: 'Grace Hopper', createdAt: '2024-01-12' },
-    { id: 'TKT-008', title: 'Email notification not working', category: 'IT', priority: 'Medium', status: 'Closed', assignedTo: 'Jane Smith', createdBy: 'Henry Ford', createdAt: '2024-01-12' },
-  ];
-
-  const statusColors = {
-    Open: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-    'In Progress': 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    Pending: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400',
-    Resolved: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-    Closed: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
+  const fetchTickets = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== 'All') params.set('status', statusFilter);
+      if (priorityFilter !== 'All') params.set('priority', priorityFilter);
+      if (searchQuery) params.set('search', searchQuery);
+      const res = await api.get<{ success: boolean; data: { tickets?: Ticket[]; items?: Ticket[] } }>(
+        `/support/tickets?${params.toString()}`
+      );
+      if (res.success) {
+        setTickets(res.data?.tickets ?? res.data?.items ?? []);
+      } else {
+        setError('Failed to load tickets');
+      }
+    } catch {
+      setError('Failed to load tickets');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const priorityColors = {
-    Low: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-    Medium: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    High: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-    Urgent: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
-  };
+  useEffect(() => { fetchTickets(); }, [statusFilter, priorityFilter]);
 
-  const filteredTickets = mockTickets.filter(ticket => {
-    const matchesSearch = ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         ticket.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || ticket.status === statusFilter;
-    const matchesPriority = priorityFilter === 'All' || ticket.priority === priorityFilter;
-    return matchesSearch && matchesStatus && matchesPriority;
+  const filteredTickets = tickets.filter(ticket => {
+    if (!searchQuery) return true;
+    return ticket.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           ticket.id?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
@@ -108,11 +112,11 @@ export default function TicketsPage() {
             </select>
             <Button variant="secondary" className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
-              More Filters
+              Filters
             </Button>
-            <Button variant="secondary" className="flex items-center gap-2">
+            <Button variant="secondary" className="flex items-center gap-2" onClick={() => fetchTickets()}>
               <Download className="h-4 w-4" />
-              Export
+              Refresh
             </Button>
           </div>
         </div>
@@ -135,35 +139,35 @@ export default function TicketsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-              {filteredTickets.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400">{ticket.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 dark:text-zinc-50">{ticket.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">{ticket.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${priorityColors[ticket.priority]}`}>
-                      {ticket.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[ticket.status]}`}>
-                      {ticket.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">{ticket.assignedTo || 'Unassigned'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">{ticket.createdBy}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan={8} className="px-6 py-12"><LoadingSpinner /></td></tr>
+              ) : error ? (
+                <tr><td colSpan={8} className="px-6 py-4"><ErrorState message={error} onRetry={fetchTickets} /></td></tr>
+              ) : filteredTickets.length === 0 ? (
+                <tr><td colSpan={8} className="px-6 py-4"><EmptyState title="No tickets found" description="No tickets match your current filters." /></td></tr>
+              ) : (
+                filteredTickets.map((ticket) => (
+                  <tr key={ticket.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400">{ticket.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 dark:text-zinc-50">{ticket.title}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">{ticket.category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={ticket.priority?.toLowerCase()} /></td>
+                    <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={ticket.status?.toLowerCase().replace(' ', '_')} /></td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">{ticket.assignedTo || 'Unassigned'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">{ticket.createdBy}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
         <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Showing {filteredTickets.length} of {mockTickets.length} tickets</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Showing {filteredTickets.length} of {tickets.length} tickets</p>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm">Previous</Button>
             <Button variant="secondary" size="sm">Next</Button>

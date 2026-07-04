@@ -2,15 +2,20 @@
 
 import { useState } from 'react';
 import { Search, Check, X, Eye, Download } from 'lucide-react';
+import { useApproveLeaveMutation, useRejectLeaveMutation } from '@/store/services/leaveApi';
 
 interface LeaveRequestsTableProps {
   onLeaveRequestClick: (request: any) => void;
   pendingLeaves?: any[];
+  onRefetch?: () => void;
 }
 
-export default function LeaveRequestsTable({ onLeaveRequestClick, pendingLeaves = [] }: LeaveRequestsTableProps) {
+export default function LeaveRequestsTable({ onLeaveRequestClick, pendingLeaves = [], onRefetch }: LeaveRequestsTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
+  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
+
+  const [approveLeave] = useApproveLeaveMutation();
+  const [rejectLeave] = useRejectLeaveMutation();
 
   const handleSelectAll = () => {
     if (selectedRequests.length === pendingLeaves.length) {
@@ -20,26 +25,48 @@ export default function LeaveRequestsTable({ onLeaveRequestClick, pendingLeaves 
     }
   };
 
-  const handleSelectRequest = (id: number) => {
+  const handleSelectRequest = (id: string) => {
     setSelectedRequests(prev =>
       prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
     );
   };
 
-  const handleApprove = (id: number) => {
-    alert(`Approved leave request ${id}`);
+  const handleApprove = async (id: string) => {
+    try {
+      await approveLeave({ id }).unwrap();
+      onRefetch?.();
+    } catch (error) {
+      console.error('Failed to approve leave:', error);
+    }
   };
 
-  const handleReject = (id: number) => {
-    alert(`Rejected leave request ${id}`);
+  const handleReject = async (id: string) => {
+    try {
+      await rejectLeave({ id }).unwrap();
+      onRefetch?.();
+    } catch (error) {
+      console.error('Failed to reject leave:', error);
+    }
   };
 
-  const handleBulkApprove = () => {
-    alert(`Bulk approving ${selectedRequests.length} requests`);
+  const handleBulkApprove = async () => {
+    try {
+      await Promise.all(selectedRequests.map(id => approveLeave({ id }).unwrap()));
+      setSelectedRequests([]);
+      onRefetch?.();
+    } catch (error) {
+      console.error('Failed to bulk approve:', error);
+    }
   };
 
-  const handleBulkReject = () => {
-    alert(`Bulk rejecting ${selectedRequests.length} requests`);
+  const handleBulkReject = async () => {
+    try {
+      await Promise.all(selectedRequests.map(id => rejectLeave({ id }).unwrap()));
+      setSelectedRequests([]);
+      onRefetch?.();
+    } catch (error) {
+      console.error('Failed to bulk reject:', error);
+    }
   };
 
   const handleExportExcel = () => {
@@ -47,20 +74,18 @@ export default function LeaveRequestsTable({ onLeaveRequestClick, pendingLeaves 
   };
 
   const filteredRequests = pendingLeaves.filter((request: any) =>
-    request.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    request.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     request.leaveType?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return 'bg-green-100 text-green-700';
-      case 'rejected':
-        return 'bg-red-100 text-red-700';
-      case 'pending':
-        return 'bg-amber-100 text-amber-700';
-      default:
-        return 'bg-zinc-100 text-zinc-700';
+    const s = status?.toLowerCase();
+    switch (s) {
+      case 'approved': return 'bg-green-100 text-green-700';
+      case 'rejected': return 'bg-red-100 text-red-700';
+      case 'pending': return 'bg-amber-100 text-amber-700';
+      case 'cancel requested': return 'bg-purple-100 text-purple-700';
+      default: return 'bg-zinc-100 text-zinc-700';
     }
   };
 
@@ -145,12 +170,12 @@ export default function LeaveRequestsTable({ onLeaveRequestClick, pendingLeaves 
                       className="rounded border-zinc-300 text-[#94cb3d] focus:ring-[#94cb3d]"
                     />
                   </td>
-                  <td className="py-3 px-4 text-sm text-zinc-900 dark:text-zinc-100 font-medium">{request.employeeName || request.employee || 'N/A'}</td>
-                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{request.leaveType || request.type || 'N/A'}</td>
-                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{new Date(request.startDate).toLocaleDateString()}</td>
-                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{new Date(request.endDate).toLocaleDateString()}</td>
-                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{request.days || request.duration || 'N/A'}</td>
-                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{request.reason || request.purpose || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-zinc-900 dark:text-zinc-100 font-medium">{request.employeeName || request.employeeId || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{request.leaveType || 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{request.fromDate ? new Date(request.fromDate).toLocaleDateString() : 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{request.toDate ? new Date(request.toDate).toLocaleDateString() : 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{request.totalDays ?? 'N/A'}</td>
+                  <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{request.reason || 'N/A'}</td>
                   <td className="py-3 px-4">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(request.status)}`}>
                       {request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'Pending'}

@@ -1,9 +1,9 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { STORAGE_KEYS } from '@/lib/constants';
-import { getToken } from '@/lib/auth';
+import { api } from '@/services/api';
 import { getCurrentManagerId, loadManagerPermissions, hasPermission } from '@/lib/permissions';
 import { getCurrentUserId, replaceUserIdInNavigation } from '@/lib/navigation';
 import { superadminNavigation, hrManagerNavigation, accountsNavigation, supportNavigation, employeeNavigation, type Role, type NavItem, type Permission } from './sidebar.config';
@@ -34,11 +34,7 @@ function addGrantedPages(items: NavItem[], grantedRoutes: string[]): NavItem[] {
 }
 
 function filterNavByPageIds(items: NavItem[], allowedPageIds: string[]): NavItem[] {
-  console.log('Filtering navigation, allowedPageIds:', allowedPageIds);
-  console.log('Items to filter:', items.map(i => i.name));
-  // If no page IDs are provided, show all pages (default behavior)
   if (!allowedPageIds || allowedPageIds.length === 0) {
-    console.log('No permissions set, showing all pages');
     return items;
   }
   
@@ -114,28 +110,20 @@ export default function Sidebar({ fixedRole }: { fixedRole?: Role } = {}) {
 
   useEffect(() => {
     const fetchUserPermissions = async () => {
+      const userId = getCurrentUserId();
+      if (!userId) return;
       try {
-        const userId = getCurrentUserId();
-        console.log('Fetching permissions for userId:', userId);
-        if (!userId) return;
-        
-        const token = getToken();
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001'}/api/v1/access-control/user-permissions/${userId}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        
-        const data = await response.json();
-        console.log('User permissions response:', data);
+        const data = await api.get<{ success: boolean; data: { pageIds: string[]; routes: string[] } }>(
+          `/access-control/user-permissions/${userId}`
+        );
         if (data.success) {
           setUserPageIds(data.data.pageIds || []);
           setUserRoutes(data.data.routes || []);
-          console.log('User routes set:', data.data.routes || []);
         }
-      } catch (error) {
-        console.error('Error fetching user permissions:', error);
+      } catch {
+        // silently fall back to showing all pages
       }
     };
-
     fetchUserPermissions();
   }, []);
 
@@ -190,9 +178,7 @@ export default function Sidebar({ fixedRole }: { fixedRole?: Role } = {}) {
       
       let filteredNavigation = addGrantedPages(baseNavigation, userRoutes);
       setNavigation(userId ? replaceUserIdInNavigation(filteredNavigation, userId) : filteredNavigation);
-    } catch (error) {
-      console.error('Error updating navigation:', error);
-      // Fallback to default navigation based on role
+    } catch {
       const fallbackNav = role === 'hr_manager' ? hrManagerNavigation : superadminNavigation;
       setNavigation(fallbackNav);
     }

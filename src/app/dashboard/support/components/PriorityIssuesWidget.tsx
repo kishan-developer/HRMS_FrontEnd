@@ -16,12 +16,7 @@ interface PriorityIssuesWidgetProps {
 }
 
 export default function PriorityIssuesWidget({ issues = [] }: PriorityIssuesWidgetProps) {
-  const mockIssues: PriorityIssue[] = issues.length > 0 ? issues : [
-    { id: 'ISS-001', title: 'Server down - payroll system', severity: 'Critical', type: 'Technical', assignedTo: 'John Doe', time: '30 min ago' },
-    { id: 'ISS-002', title: 'Data sync failure across departments', severity: 'Critical', type: 'Technical', assignedTo: 'Jane Smith', time: '1 hour ago' },
-    { id: 'ISS-003', title: 'Multiple login failures reported', severity: 'High', type: 'Security', assignedTo: 'Mike Johnson', time: '2 hours ago' },
-    { id: 'ISS-004', title: 'Attendance device malfunction', severity: 'High', type: 'Hardware', time: '3 hours ago' },
-  ];
+  const mockIssues = issues;
 
   const severityIcons = {
     Critical: <XCircle className="h-5 w-5 text-red-500" />,
@@ -44,9 +39,11 @@ export default function PriorityIssuesWidget({ issues = [] }: PriorityIssuesWidg
           {mockIssues.length} Active
         </span>
       </div>
-      
+
       <div className="space-y-3">
-        {mockIssues.map((issue) => (
+        {mockIssues.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-4">No priority issues</p>
+        ) : mockIssues.map((issue) => (
           <div key={issue.id} className={`p-4 rounded-lg border-l-4 ${severityColors[issue.severity]}`}>
             <div className="flex items-start gap-3">
               <div className="mt-0.5">{severityIcons[issue.severity]}</div>

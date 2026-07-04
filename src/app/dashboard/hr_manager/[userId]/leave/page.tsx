@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Settings } from 'lucide-react';
-import { useGetPendingLeavesQuery, useGetHolidaysQuery, useGetLeaveTypesQuery } from '@/store/services/leaveApi';
+import { useGetLeaveApprovalsQuery, useGetHolidaysQuery, useGetLeaveTypesQuery } from '@/store/services/leaveApi';
 import { useGetEmployeesQuery } from '@/store/services/userApi';
 import LeaveFilters from './components/LeaveFilters';
 import LeaveSummaryCards from './components/LeaveSummaryCards';
@@ -30,7 +30,7 @@ export default function Page() {
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
 
   // Redux API calls
-  const { data: pendingLeavesData, refetch: refetchLeaves } = useGetPendingLeavesQuery({});
+  const { data: pendingLeavesData, refetch: refetchLeaves } = useGetLeaveApprovalsQuery({});
   const { data: holidaysData, refetch: refetchHolidays } = useGetHolidaysQuery({});
   const { data: leaveTypesData, refetch: refetchLeaveTypes } = useGetLeaveTypesQuery({});
   const { data: employeesData } = useGetEmployeesQuery({});
@@ -47,7 +47,8 @@ export default function Page() {
   };
 
   const handleCreateLeaveRequest = () => {
-    alert('Create Leave Request modal would open here');
+    setSelectedLeaveRequest(null);
+    setIsApprovalPanelOpen(true);
   };
 
   return (

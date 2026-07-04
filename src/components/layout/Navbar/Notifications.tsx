@@ -20,8 +20,8 @@ export default function Notifications() {
     try {
       const response = await notificationsApi.getAll({ unreadOnly: false, page: 1, pageSize: 5 });
       setNotifications(response.data.items);
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+    } catch {
+      // errors handled by api utility toast
     } finally {
       setLoading(false);
     }
@@ -47,8 +47,8 @@ export default function Notifications() {
     try {
       await notificationsApi.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    } catch (error) {
-      console.error('Failed to mark all as read:', error);
+    } catch {
+      // silently ignore
     }
   };
 
@@ -56,8 +56,8 @@ export default function Notifications() {
     try {
       await notificationsApi.markAsRead(id);
       setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
-    } catch (error) {
-      console.error('Failed to mark as read:', error);
+    } catch {
+      // silently ignore
     }
   };
 

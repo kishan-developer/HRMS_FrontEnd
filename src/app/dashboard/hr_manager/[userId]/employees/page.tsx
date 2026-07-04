@@ -8,13 +8,14 @@ import EmployeeTable from './components/EmployeeTable';
 import EmployeeProfileModal from './components/EmployeeProfileModal';
 import EmployeeFormModal from './components/EmployeeFormModal';
 import BulkUploadModal from './components/BulkUploadModal';
-import { useGetAllUsersQuery, useDeleteEmployeeMutation, useUpdateEmployeeMutation } from '@/store/services/userApi';
+import { useGetEmployeesQuery, useDeleteEmployeeMutation, useUpdateEmployeeMutation } from '@/store/services/userApi';
 
 export default function Page() {
   const [searchTerm, setSearchTerm] = useState('');
   const [department, setDepartment] = useState('');
   const [designation, setDesignation] = useState('');
   const [employmentType, setEmploymentType] = useState('');
+  const [role, setRole] = useState('');
   const [status, setStatus] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -23,37 +24,79 @@ export default function Page() {
   const [editingEmployee, setEditingEmployee] = useState<any>(null);
 
   // Redux API call
-  const { data: usersData, isLoading, refetch } = useGetAllUsersQuery({});
+  const { data: employeesData, isLoading, refetch } = useGetEmployeesQuery({});
   const [deleteEmployee] = useDeleteEmployeeMutation();
   const [updateEmployee] = useUpdateEmployeeMutation();
 
-  const employees = usersData?.data?.users || usersData?.data?.items || usersData?.data || [];
+  const employees = employeesData?.data || [];
 
   const mappedEmployees = employees.map((user: any) => ({
     id: user._id || user.id,
-    name: user.email?.split('@')[0] || user.email || 'Unknown',
+    name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email?.split('@')[0] || 'Unknown',
     employeeId: user.employeeId || 'N/A',
-    department: user.employeeDetails?.department || 'N/A',
-    designation: user.employeeDetails?.designation || user.role || 'N/A',
-    phone: user.employeeDetails?.mobile || 'N/A',
+    department: user.department || 'N/A',
+    designation: user.designation || user.role || 'N/A',
+    phone: user.phone || user.mobile || 'N/A',
     email: user.email,
     role: user.role || 'Staff',
-    status: user.isActive !== false ? 'active' : 'inactive',
-    dateOfJoining: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    status: user.employeeStatus || (user.isActive !== false ? 'active' : 'inactive'),
+    dateOfJoining: user.dateOfJoining || user.createdAt ? new Date(user.dateOfJoining || user.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     attendanceSummary: { present: 0, absent: 0, late: 0, totalDays: 0 },
     leaveBalance: { casual: 0, sick: 0, earned: 0 },
   }));
+
+  // Apply filters
+  const filteredEmployees = mappedEmployees.filter((employee: any) => {
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        employee.name?.toLowerCase().includes(searchLower) ||
+        employee.employeeId?.toLowerCase().includes(searchLower) ||
+        employee.email?.toLowerCase().includes(searchLower) ||
+        employee.phone?.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Department filter (partial match, case-insensitive)
+    if (department && !employee.department?.toLowerCase().includes(department.toLowerCase())) {
+      return false;
+    }
+
+    // Designation filter (partial match, case-insensitive)
+    if (designation && !employee.designation?.toLowerCase().includes(designation.toLowerCase())) {
+      return false;
+    }
+
+    // Employment type filter (partial match, case-insensitive)
+    if (employmentType && !employee.employmentType?.toLowerCase().includes(employmentType.toLowerCase())) {
+      return false;
+    }
+
+    // Role filter (partial match, case-insensitive)
+    if (role && !employee.role?.toLowerCase().includes(role.toLowerCase())) {
+      return false;
+    }
+
+    // Status filter (exact match, case-insensitive)
+    if (status && employee.status?.toLowerCase() !== status.toLowerCase()) {
+      return false;
+    }
+
+    return true;
+  });
 
   const handleClearFilters = () => {
     setSearchTerm('');
     setDepartment('');
     setDesignation('');
     setEmploymentType('');
+    setRole('');
     setStatus('');
   };
 
   const handleView = (id: string) => {
-    const employee = mappedEmployees.find((e: any) => e.id === id);
+    const employee = filteredEmployees.find((e: any) => e.id === id);
     if (employee) {
       setSelectedEmployee(employee);
       setIsProfileModalOpen(true);
@@ -61,7 +104,7 @@ export default function Page() {
   };
 
   const handleEdit = (id: string) => {
-    const employee = mappedEmployees.find((e: any) => e.id === id);
+    const employee = filteredEmployees.find((e: any) => e.id === id);
     if (employee) {
       setEditingEmployee(employee);
       setIsFormModalOpen(true);
@@ -69,7 +112,7 @@ export default function Page() {
   };
 
   const handleResetPassword = (id: string) => {
-    const employee = mappedEmployees.find((e: any) => e.id === id);
+    const employee = filteredEmployees.find((e: any) => e.id === id);
     if (employee) {
       // Password reset would need a dedicated API endpoint
       console.log(`Password reset link sent to ${employee.email}`);
@@ -77,7 +120,7 @@ export default function Page() {
   };
 
   const handleToggleStatus = async (id: string) => {
-    const employee = mappedEmployees.find((e: any) => e.id === id);
+    const employee = filteredEmployees.find((e: any) => e.id === id);
     if (employee) {
       try {
         await updateEmployee({ 
@@ -150,7 +193,7 @@ export default function Page() {
       </div>
 
       {/* Employee Status Insights */}
-      <EmployeeStatusInsights />
+      <EmployeeStatusInsights employees={employees} />
 
       {/* Filters & Search */}
       <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
@@ -163,6 +206,8 @@ export default function Page() {
           onDesignationChange={setDesignation}
           employmentType={employmentType}
           onEmploymentTypeChange={setEmploymentType}
+          role={role}
+          onRoleChange={setRole}
           status={status}
           onStatusChange={setStatus}
           onClearFilters={handleClearFilters}
@@ -172,7 +217,7 @@ export default function Page() {
       {/* Employees Table */}
       <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
         <EmployeeTable
-          employees={employees}
+          employees={filteredEmployees}
           onView={handleView}
           onEdit={handleEdit}
           onResetPassword={handleResetPassword}

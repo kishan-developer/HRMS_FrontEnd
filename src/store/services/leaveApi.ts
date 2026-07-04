@@ -6,6 +6,23 @@ export const leaveApi = createApi({
   baseQuery: createBaseQuery('/api/v1/leaves'),
   tagTypes: ['Leave', 'LeaveBalance', 'Holiday', 'LeaveType'],
   endpoints: (builder) => ({
+    getAllLeaves: builder.query({
+      query: (params?: { status?: string; employeeId?: string; leaveType?: string; page?: number; pageSize?: number }) => {
+        const sp = new URLSearchParams();
+        if (params?.status) sp.set('status', params.status);
+        if (params?.employeeId) sp.set('employeeId', params.employeeId);
+        if (params?.leaveType) sp.set('leaveType', params.leaveType);
+        if (params?.page) sp.set('page', String(params.page));
+        if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
+        const qs = sp.toString();
+        return qs ? `/?${qs}` : '/';
+      },
+      providesTags: ['Leave'],
+    }),
+    getLeaveApprovals: builder.query({
+      query: () => '/approvals',
+      providesTags: ['Leave'],
+    }),
     getMyLeaveRequests: builder.query({
       query: () => '/my-requests',
       providesTags: ['Leave'],
@@ -34,6 +51,22 @@ export const leaveApi = createApi({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Leave', id }],
     }),
+    approveLeave: builder.mutation({
+      query: ({ id, ...data }) => ({
+        url: `/${id}/approve`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Leave'],
+    }),
+    rejectLeave: builder.mutation({
+      query: ({ id, ...data }) => ({
+        url: `/${id}/reject`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Leave'],
+    }),
     cancelLeave: builder.mutation({
       query: (id) => ({
         url: `/${id}/cancel`,
@@ -44,10 +77,6 @@ export const leaveApi = createApi({
     getLeaveBalance: builder.query({
       query: (employeeId) => `/balance/${employeeId}`,
       providesTags: ['LeaveBalance'],
-    }),
-    getPendingLeaves: builder.query({
-      query: () => '/pending',
-      providesTags: ['Leave'],
     }),
     // Holidays endpoints
     getHolidays: builder.query({
@@ -109,14 +138,17 @@ export const leaveApi = createApi({
 });
 
 export const {
+  useGetAllLeavesQuery,
+  useGetLeaveApprovalsQuery,
   useGetMyLeaveRequestsQuery,
   useGetMyPendingLeavesQuery,
   useGetLeaveByIdQuery,
   useCreateLeaveMutation,
   useUpdateLeaveMutation,
+  useApproveLeaveMutation,
+  useRejectLeaveMutation,
   useCancelLeaveMutation,
   useGetLeaveBalanceQuery,
-  useGetPendingLeavesQuery,
   useGetHolidaysQuery,
   useCreateHolidayMutation,
   useUpdateHolidayMutation,

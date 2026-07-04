@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Save } from 'lucide-react';
+import { toast } from 'sonner';
+import { useGetPayrollByEmployeeQuery } from '@/store/services/payslipApi';
+import { api } from '@/services/api';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
 
 interface PayrollEntry {
   id: string;
@@ -18,26 +22,32 @@ interface PayrollEntry {
 export default function EmployeePayrollEdit() {
   const params = useParams();
   const router = useRouter();
-  const userId = params.userId as string;
   const employeeId = params.employeeId as string;
 
   const [payrollData, setPayrollData] = useState<Partial<PayrollEntry>>({});
   const [saving, setSaving] = useState(false);
 
+  const now = new Date();
+  const { data: res, isLoading } = useGetPayrollByEmployeeQuery(
+    { employeeId, month: now.getMonth() + 1, year: now.getFullYear() },
+    { skip: !employeeId }
+  );
+
   useEffect(() => {
-    // Simulate fetching employee data
-    const mockData: PayrollEntry = {
-      id: employeeId,
-      employeeId: 'EMP001',
-      name: 'John Smith',
-      department: 'Engineering',
-      basicSalary: 80000,
-      deductions: 12000,
-      netSalary: 68000,
-      status: 'processed',
-    };
-    setPayrollData(mockData);
-  }, [employeeId]);
+    const raw = res?.data ?? res;
+    if (raw) {
+      setPayrollData({
+        id: raw._id ?? raw.id ?? employeeId,
+        employeeId: raw.employeeId ?? employeeId,
+        name: raw.employeeName ?? raw.name ?? 'Employee',
+        department: raw.department ?? '',
+        basicSalary: raw.basicSalary ?? raw.grossSalary ?? 0,
+        deductions: raw.totalDeductions ?? raw.deductions ?? 0,
+        netSalary: raw.netSalary ?? 0,
+        status: raw.status ?? 'pending',
+      });
+    }
+  }, [res, employeeId]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -49,11 +59,15 @@ export default function EmployeePayrollEdit() {
 
   const handleSave = async () => {
     setSaving(true);
-    // Simulate saving
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      await api.put(`/payroll/${payrollData.id}`, payrollData);
+      toast.success('Payroll updated successfully');
       router.back();
-    }, 1000);
+    } catch {
+      toast.error('Failed to save payroll changes');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCalculate = () => {
@@ -65,9 +79,8 @@ export default function EmployeePayrollEdit() {
     }
   };
 
-  if (!payrollData.id) {
-    return <div className="p-8">Loading...</div>;
-  }
+  if (isLoading) return <div className="p-8"><LoadingSpinner /></div>;
+  if (!payrollData.id) return <div className="p-8 text-zinc-500">No payroll data found.</div>;
 
   return (
     <div className="p-8">

@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { useGetPayrollByEmployeeQuery } from '@/store/services/payslipApi';
+import { useGetLeaveBalanceQuery } from '@/store/services/leaveApi';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
+import ErrorState from '@/components/ui/ErrorState';
 
 interface PayrollEntry {
   id: string;
@@ -32,35 +36,44 @@ interface EmployeeLeave {
 export default function EmployeePayrollView() {
   const params = useParams();
   const router = useRouter();
-  const userId = params.userId as string;
   const employeeId = params.employeeId as string;
 
-  const [payrollData, setPayrollData] = useState<PayrollEntry | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState('June 2026');
-  const [attendanceData, setAttendanceData] = useState<AttendanceData[]>([]);
-  const [employeeLeave, setEmployeeLeave] = useState<EmployeeLeave>({ clBalance: 12, plBalance: 15 });
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(`${now.toLocaleString('en', { month: 'long' })} ${now.getFullYear()}`);
   const [calculatedSalary, setCalculatedSalary] = useState<number | null>(null);
 
-  useEffect(() => {
-    const mockData: PayrollEntry = {
-      id: employeeId,
-      employeeId: 'EMP001',
-      name: 'John Smith',
-      department: 'Engineering',
-      basicSalary: 80000,
-      deductions: 12000,
-      netSalary: 68000,
-      status: 'processed',
-    };
-    setPayrollData(mockData);
+  const { data: payrollRes, isLoading, error, refetch } = useGetPayrollByEmployeeQuery(
+    { employeeId, month: now.getMonth() + 1, year: now.getFullYear() },
+    { skip: !employeeId }
+  );
+  const { data: leaveBalRes } = useGetLeaveBalanceQuery(employeeId, { skip: !employeeId });
 
-    const mockAttendance: AttendanceData[] = [
-      { month: 'April 2026', present: 22, absent: 4, cl: 2, pl: 2, totalDays: 26 },
-      { month: 'May 2026', present: 23, absent: 3, cl: 1, pl: 2, totalDays: 26 },
-      { month: 'June 2026', present: 21, absent: 5, cl: 3, pl: 2, totalDays: 26 },
-    ];
-    setAttendanceData(mockAttendance);
-  }, [employeeId]);
+  const rawPayroll = payrollRes?.data ?? payrollRes;
+  const payrollData: PayrollEntry | null = rawPayroll ? {
+    id: rawPayroll._id ?? rawPayroll.id ?? employeeId,
+    employeeId: rawPayroll.employeeId ?? employeeId,
+    name: rawPayroll.employeeName ?? rawPayroll.name ?? 'Employee',
+    department: rawPayroll.department ?? '',
+    basicSalary: rawPayroll.basicSalary ?? rawPayroll.grossSalary ?? 0,
+    deductions: rawPayroll.totalDeductions ?? rawPayroll.deductions ?? 0,
+    netSalary: rawPayroll.netSalary ?? 0,
+    status: rawPayroll.status ?? 'pending',
+  } : null;
+
+  const rawBalance = leaveBalRes?.data ?? leaveBalRes;
+  const employeeLeave: EmployeeLeave = {
+    clBalance: rawBalance?.cl?.remaining ?? rawBalance?.casualLeave?.remaining ?? 12,
+    plBalance: rawBalance?.pl?.remaining ?? rawBalance?.privilegeLeave?.remaining ?? 15,
+  };
+
+  const attendanceData: AttendanceData[] = (rawPayroll?.attendanceSummary ?? []).map((a: any) => ({
+    month: a.month ?? '',
+    present: a.present ?? 0,
+    absent: a.absent ?? 0,
+    cl: a.cl ?? 0,
+    pl: a.pl ?? 0,
+    totalDays: a.totalDays ?? a.workingDays ?? 26,
+  }));
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -72,29 +85,20 @@ export default function EmployeePayrollView() {
 
   const calculateSalary = () => {
     if (!payrollData) return;
-
     const selectedAttendance = attendanceData.find(a => a.month === selectedMonth);
     if (!selectedAttendance) return;
-
-    let clConsumed = Math.min(selectedAttendance.cl, employeeLeave.clBalance);
-    let remainingCL = employeeLeave.clBalance - clConsumed;
-    
-    let plConsumed = Math.min(selectedAttendance.pl, remainingCL > 0 ? 0 : employeeLeave.plBalance);
-    let remainingPL = employeeLeave.plBalance - plConsumed;
-
+    const clConsumed = Math.min(selectedAttendance.cl, employeeLeave.clBalance);
+    const plConsumed = Math.min(selectedAttendance.pl, employeeLeave.plBalance);
     const perDaySalary = payrollData.basicSalary / selectedAttendance.totalDays;
-    
     const totalPaidLeaves = clConsumed + plConsumed;
-    const unpaidDays = selectedAttendance.absent - totalPaidLeaves;
-    const unpaidDeduction = unpaidDays > 0 ? unpaidDays * perDaySalary : 0;
-
-    const calculatedNet = payrollData.basicSalary - payrollData.deductions - unpaidDeduction;
-    setCalculatedSalary(calculatedNet);
+    const unpaidDays = Math.max(0, selectedAttendance.absent - totalPaidLeaves);
+    const unpaidDeduction = unpaidDays * perDaySalary;
+    setCalculatedSalary(payrollData.basicSalary - payrollData.deductions - unpaidDeduction);
   };
 
-  if (!payrollData) {
-    return <div className="p-8">Loading...</div>;
-  }
+  if (isLoading) return <div className="p-8"><LoadingSpinner /></div>;
+  if (error) return <div className="p-8"><ErrorState message="Failed to load payroll data" onRetry={refetch} /></div>;
+  if (!payrollData) return <div className="p-8 text-zinc-500">No payroll data found for this employee.</div>;
 
   return (
     <div className="p-8">

@@ -1,11 +1,19 @@
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import AuthGuard from '@/components/auth/AuthGuard';
 
-export default function AccountsUserIdLayout({
+export default async function AccountsUserIdLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { userId: string };
+  params: Promise<{ userId: string }>;
 }) {
-  return <DashboardLayout role="accounts">{children}</DashboardLayout>;
+  const { userId } = await params;
+  return (
+    <DashboardLayout role="accounts">
+      <AuthGuard requiredRole="accounts" userId={userId}>
+        {children}
+      </AuthGuard>
+    </DashboardLayout>
+  );
 }

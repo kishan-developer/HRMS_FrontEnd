@@ -1,11 +1,19 @@
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import AuthGuard from '@/components/auth/AuthGuard';
 
-export default function SuperAdminUserIdLayout({
+export default async function SuperAdminUserIdLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { userId: string };
+  params: Promise<{ userId: string }>;
 }) {
-  return <DashboardLayout role="superadmin">{children}</DashboardLayout>;
+  const { userId } = await params;
+  return (
+    <DashboardLayout role="superadmin">
+      <AuthGuard requiredRole="superadmin" userId={userId}>
+        {children}
+      </AuthGuard>
+    </DashboardLayout>
+  );
 }

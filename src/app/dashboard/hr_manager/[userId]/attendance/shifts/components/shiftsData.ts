@@ -51,6 +51,8 @@ export const SHIFT_TYPES: Array<ShiftType | 'All Types'> = ['All Types', 'Genera
 export const STATUS_OPTIONS: Array<ShiftStatus | 'All'> = ['All', 'Active', 'Inactive'];
 export const WEEK_DAYS: WeekDay[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+export const SAMPLE_EMPLOYEES: Array<{ id: string; name: string; department: string }> = [];
+
 const parseHM = (hm: string) => {
   const [h, m] = hm.split(':').map(Number);
   return h * 60 + m;

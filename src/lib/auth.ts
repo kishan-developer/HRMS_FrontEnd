@@ -53,7 +53,7 @@ export async function logout(): Promise<void> {
   
   try {
     if (user?.id) {
-      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
       await fetch(`${BACKEND_URL}/api/v1/auth/logout`, {
         method: 'POST',
         headers: {
@@ -62,8 +62,8 @@ export async function logout(): Promise<void> {
         body: JSON.stringify({ userId: user.id }),
       });
     }
-  } catch (error) {
-    console.error('Logout API call failed:', error);
+  } catch {
+    // ignore — storage is cleared regardless
   }
   
   removeToken();

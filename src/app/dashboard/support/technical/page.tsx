@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, AlertTriangle, Download, MoreVertical } from 'lucide-react';
 import Button from '@/components/ui/Button/Button';
+import { api } from '@/services/api';
+import { toast } from 'sonner';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface TechnicalIssue {
   id: string;
@@ -19,17 +23,31 @@ export default function TechnicalIssuesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [severityFilter, setSeverityFilter] = useState<string>('All');
+  const [issues, setIssues] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const mockIssues: TechnicalIssue[] = [
-    { id: 'ISS-001', title: 'Server down - payroll system', category: 'Infrastructure', severity: 'Critical', status: 'In Progress', reportedBy: 'Alice Smith', assignedTo: 'John Doe', createdAt: '2024-01-15' },
-    { id: 'ISS-002', title: 'Data sync failure across departments', category: 'Database', severity: 'Critical', status: 'Investigating', reportedBy: 'Bob Johnson', assignedTo: 'Jane Smith', createdAt: '2024-01-15' },
-    { id: 'ISS-003', title: 'Multiple login failures reported', category: 'Security', severity: 'High', status: 'In Progress', reportedBy: 'Charlie Brown', assignedTo: 'Mike Wilson', createdAt: '2024-01-14' },
-    { id: 'ISS-004', title: 'Attendance device malfunction', category: 'Hardware', severity: 'High', status: 'Reported', reportedBy: 'Diana Prince', createdAt: '2024-01-14' },
-    { id: 'ISS-005', title: 'Mobile app crash on Android', category: 'Mobile', severity: 'Medium', status: 'Investigating', reportedBy: 'Eva Green', createdAt: '2024-01-13' },
-    { id: 'ISS-006', title: 'Slow page load times', category: 'Performance', severity: 'Medium', status: 'In Progress', reportedBy: 'Eva Green', assignedTo: 'Sarah Davis', createdAt: '2024-01-13' },
-    { id: 'ISS-007', title: 'Email notification delay', category: 'Communication', severity: 'Low', status: 'Resolved', reportedBy: 'Frank Miller', createdAt: '2024-01-12' },
-    { id: 'ISS-008', title: 'API rate limiting errors', category: 'Backend', severity: 'High', status: 'Investigating', reportedBy: 'Grace Hopper', createdAt: '2024-01-12' },
-  ];
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get<any>('/support/technical');
+        setIssues(res.data?.issues ?? res.data?.items ?? res.data ?? []);
+      } catch {
+        setIssues([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  const filteredIssues = issues.filter((issue: any) => {
+    const matchesSearch = (issue.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (issue.id ?? '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || issue.status === statusFilter;
+    const matchesSeverity = severityFilter === 'All' || issue.severity === severityFilter;
+    return matchesSearch && matchesStatus && matchesSeverity;
+  });
 
   const statusColors = {
     Reported: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -45,13 +63,7 @@ export default function TechnicalIssuesPage() {
     Critical: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
   };
 
-  const filteredIssues = mockIssues.filter(issue => {
-    const matchesSearch = issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         issue.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || issue.status === statusFilter;
-    const matchesSeverity = severityFilter === 'All' || issue.severity === severityFilter;
-    return matchesSearch && matchesStatus && matchesSeverity;
-  });
+  if (loading) return <div className="p-6"><LoadingSpinner /></div>;
 
   return (
     <div className="space-y-6">
@@ -70,13 +82,13 @@ export default function TechnicalIssuesPage() {
       </div>
 
       {/* Critical Issues Alert */}
-      {mockIssues.filter(i => i.severity === 'Critical' && i.status !== 'Resolved').length > 0 && (
+      {issues.filter((i: any) => i.severity === 'Critical' && i.status !== 'Resolved').length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
             <div className="flex-1">
               <p className="text-sm font-medium text-red-900 dark:text-red-300">
-                {mockIssues.filter(i => i.severity === 'Critical' && i.status !== 'Resolved').length} Critical Issues Require Immediate Attention
+                {issues.filter((i: any) => i.severity === 'Critical' && i.status !== 'Resolved').length} Critical Issues Require Immediate Attention
               </p>
             </div>
             <Button variant="danger" size="sm">View Critical</Button>
@@ -143,18 +155,30 @@ export default function TechnicalIssuesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-              {filteredIssues.map((issue) => (
+              {filteredIssues.length === 0 ? (
+                <tr><td colSpan={8} className="px-6 py-8 text-center text-zinc-500">No issues found</td></tr>
+              ) : filteredIssues.map((issue: any) => (
                 <tr key={issue.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400">{issue.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-900 dark:text-zinc-50">{issue.title}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">{issue.category}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${severityColors[issue.severity]}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      issue.severity === 'Critical' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+                      issue.severity === 'High' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
+                      issue.severity === 'Medium' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                      'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                    }`}>
                       {issue.severity}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[issue.status]}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      issue.status === 'Resolved' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
+                      issue.status === 'In Progress' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' :
+                      issue.status === 'Investigating' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                      'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    }`}>
                       {issue.status}
                     </span>
                   </td>
@@ -171,7 +195,7 @@ export default function TechnicalIssuesPage() {
           </table>
         </div>
         <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Showing {filteredIssues.length} of {mockIssues.length} issues</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Showing {filteredIssues.length} of {issues.length} issues</p>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm">Previous</Button>
             <Button variant="secondary" size="sm">Next</Button>

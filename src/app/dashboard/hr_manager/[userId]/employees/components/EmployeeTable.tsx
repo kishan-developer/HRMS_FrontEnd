@@ -154,8 +154,8 @@ export default function EmployeeTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {paginatedEmployees.map((employee) => (
-              <tr key={employee.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+            {paginatedEmployees.map((employee, index) => (
+              <tr key={employee.id || employee.employeeId || index} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     {employee.photo ? (

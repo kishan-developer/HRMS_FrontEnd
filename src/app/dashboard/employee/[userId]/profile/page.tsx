@@ -3,21 +3,19 @@
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Building2, Calendar, Edit, Save, Camera, Upload, FileText, GraduationCap, Briefcase, Link as LinkIcon, X, Download } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
-import { getToken, getUser } from '@/lib/auth';
+import { getUser } from '@/lib/auth';
+import { api } from '@/services/api';
+import { toast } from 'sonner';
 
 export default function EmployeeProfile() {
   const currentUser = getUser();
   const userId = currentUser?.id;
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   const [profile, setProfile] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
-
-  console.log('Current user from auth:', currentUser);
-  console.log('Using userId for fetch:', userId);
 
   // Redirect to login if no user
   useEffect(() => {
@@ -40,25 +38,13 @@ export default function EmployeeProfile() {
 
   const fetchProfile = async () => {
     try {
-      const fetchUrl = `${BACKEND_URL}/api/v1/users/${userId}?_t=${Date.now()}`;
-      console.log('Fetching profile from:', fetchUrl);
-      
-      const response = await fetch(fetchUrl, {
-        cache: 'no-store',
-      });
-      const data = await response.json();
-      
-      console.log('API Response:', data);
-      
+      const data = await api.get<{ success: boolean; data: any }>(`/users/${userId}`);
       if (data.success) {
-        console.log('Profile data fetched:', data.data);
         setProfile(data.data);
         setFormData(data.data || {});
-      } else {
-        console.error('API returned error:', data);
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+    } catch {
+      toast.error('Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -67,44 +53,15 @@ export default function EmployeeProfile() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = getToken();
-      console.log('Token from getToken():', token ? 'Token exists' : 'No token');
-      console.log('Token length:', token?.length);
-      console.log('First 50 chars of token:', token?.substring(0, 50));
-      
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-        console.log('Authorization header set');
-      } else {
-        console.error('No token available - user not logged in');
-      }
-
-      console.log('Sending PUT request to:', `${BACKEND_URL}/api/v1/users/${userId}/profile`);
-      console.log('Request body:', formData);
-
-      const response = await fetch(`${BACKEND_URL}/api/v1/users/${userId}/profile`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(formData),
-      });
-      
-      console.log('Response status:', response.status);
-      const data = await response.json();
-      console.log('Response data:', data);
+      const data = await api.put<{ success: boolean; data: any }>(`/users/${userId}/profile`, formData);
       
       if (data.success) {
         setProfile(data.data);
         setEditing(false);
-      } else {
-        alert('Failed to update profile: ' + data.error?.message || data.message);
+        toast.success('Profile updated successfully');
       }
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      alert('Failed to update profile');
+    } catch {
+      toast.error('Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -117,65 +74,42 @@ export default function EmployeeProfile() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const token = getToken();
-    const formData = new FormData();
-    formData.append('file', file);
-
+    const form = new FormData();
+    form.append('file', file);
+    const token = localStorage.getItem('accessToken');
     try {
-      const response = await fetch(`${BACKEND_URL}/api/v1/users/${userId}/documents`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001'}/api/v1/users/${userId}/documents`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
       });
-
-      const data = await response.json();
+      const data = await res.json();
       if (data.success) {
-        // Refresh profile to get updated documents
         fetchProfile();
+        toast.success('Document uploaded');
       } else {
-        alert('Failed to upload document: ' + data.error?.message || data.message);
+        toast.error('Failed to upload document');
       }
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      alert('Failed to upload document');
+    } catch {
+      toast.error('Failed to upload document');
     }
   };
 
   const handleDeleteDocument = async (documentName: string) => {
-    const token = getToken();
-
     try {
-      const response = await fetch(`${BACKEND_URL}/api/v1/users/${userId}/documents`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ documentName }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        // Refresh profile to get updated documents
-        fetchProfile();
-      } else {
-        alert('Failed to delete document: ' + data.error?.message || data.message);
-      }
-    } catch (error) {
-      console.error('Error deleting document:', error);
-      alert('Failed to delete document');
+      await api.del(`/users/${userId}/documents`, { body: JSON.stringify({ documentName }) });
+      fetchProfile();
+      toast.success('Document deleted');
+    } catch {
+      toast.error('Failed to delete document');
     }
   };
 
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-pulse text-zinc-500 dark:text-zinc-400">
-          Loading profile...
-        </div>
+      <div className="flex items-center justify-center h-full py-32">
+        <div className="w-8 h-8 border-4 border-zinc-200 dark:border-zinc-700 border-t-[#94cb3d] rounded-full animate-spin" />
       </div>
     );
   }

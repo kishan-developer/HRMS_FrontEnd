@@ -1,40 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, BookOpen, Eye, ThumbsUp, MoreVertical, FileText, Video, HelpCircle } from 'lucide-react';
 import Button from '@/components/ui/Button/Button';
-
-interface Article {
-  id: string;
-  title: string;
-  category: string;
-  tags: string[];
-  author: string;
-  views: number;
-  helpfulCount: number;
-  isPublished: boolean;
-  createdAt: string;
-}
+import { api } from '@/services/api';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
+import EmptyState from '@/components/ui/EmptyState';
 
 export default function KnowledgeBasePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const mockArticles: Article[] = [
-    { id: 'KB-001', title: 'How to reset your password', category: 'Account Settings', tags: ['password', 'security'], author: 'John Doe', views: 1250, helpfulCount: 89, isPublished: true, createdAt: '2024-01-15' },
-    { id: 'KB-002', title: 'Submit a leave request guide', category: 'Leave', tags: ['leave', 'requests'], author: 'Jane Smith', views: 987, helpfulCount: 76, isPublished: true, createdAt: '2024-01-14' },
-    { id: 'KB-003', title: 'Understanding your payslip', category: 'Payroll', tags: ['payroll', 'salary'], author: 'Mike Wilson', views: 856, helpfulCount: 65, isPublished: true, createdAt: '2024-01-13' },
-    { id: 'KB-004', title: 'Mobile app installation guide', category: 'Mobile App', tags: ['mobile', 'installation'], author: 'Sarah Davis', views: 743, helpfulCount: 58, isPublished: true, createdAt: '2024-01-12' },
-    { id: 'KB-005', title: 'Attendance marking process', category: 'Attendance', tags: ['attendance', 'check-in'], author: 'Tom Hardy', views: 698, helpfulCount: 52, isPublished: true, createdAt: '2024-01-11' },
-    { id: 'KB-006', title: 'Performance review cycle', category: 'Performance', tags: ['performance', 'review'], author: 'Eva Green', views: 543, helpfulCount: 41, isPublished: false, createdAt: '2024-01-10' },
-  ];
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get<any>('/knowledge-base');
+        setArticles(res.data?.articles ?? res.data?.items ?? res.data ?? []);
+      } catch {
+        setArticles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
 
   const categories = ['All', 'Account Settings', 'Attendance', 'Leave', 'Payroll', 'Performance', 'Mobile App', 'IT Support'];
 
-  const filteredArticles = mockArticles.filter(article => {
-    const matchesSearch = article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredArticles = articles.filter((article: any) => {
+    const matchesSearch = (article.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (article.tags ?? []).some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = categoryFilter === 'All' || article.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -63,7 +62,7 @@ export default function KnowledgeBasePage() {
               <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{mockArticles.length}</p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{articles.length}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Articles</p>
             </div>
           </div>
@@ -74,7 +73,7 @@ export default function KnowledgeBasePage() {
               <Eye className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{mockArticles.reduce((sum, a) => sum + a.views, 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{articles.reduce((sum: number, a: any) => sum + (a.views ?? 0), 0).toLocaleString()}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Views</p>
             </div>
           </div>
@@ -85,7 +84,7 @@ export default function KnowledgeBasePage() {
               <ThumbsUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{mockArticles.reduce((sum, a) => sum + a.helpfulCount, 0)}</p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{articles.reduce((sum: number, a: any) => sum + (a.helpfulCount ?? 0), 0)}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Helpful Votes</p>
             </div>
           </div>
@@ -96,7 +95,7 @@ export default function KnowledgeBasePage() {
               <HelpCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{mockArticles.filter(a => a.isPublished).length}</p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{articles.filter((a: any) => a.isPublished).length}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Published</p>
             </div>
           </div>
@@ -128,9 +127,15 @@ export default function KnowledgeBasePage() {
         </div>
       </div>
 
+
       {/* Articles Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredArticles.map((article) => (
+      {loading ? (
+        <div className="flex justify-center py-12"><LoadingSpinner /></div>
+      ) : filteredArticles.length === 0 ? (
+        <EmptyState title="No articles" description="No knowledge base articles match your current filters." />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredArticles.map((article: any) => (
           <div key={article.id} className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 hover:shadow-lg transition-shadow cursor-pointer">
             <div className="flex items-start justify-between mb-3">
               <span className="text-xs px-2 py-1 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-full font-medium">
@@ -142,7 +147,7 @@ export default function KnowledgeBasePage() {
             </div>
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2 line-clamp-2">{article.title}</h3>
             <div className="flex flex-wrap gap-2 mb-4">
-              {article.tags.map((tag) => (
+              {(article.tags ?? []).map((tag: string) => (
                 <span key={tag} className="text-xs px-2 py-1 bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 rounded">
                   {tag}
                 </span>
@@ -168,8 +173,9 @@ export default function KnowledgeBasePage() {
               <span>{article.createdAt}</span>
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

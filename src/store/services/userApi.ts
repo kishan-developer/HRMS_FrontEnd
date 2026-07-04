@@ -43,37 +43,66 @@ export const userApi = createApi({
       }),
       invalidatesTags: (result, error, { userId }) => [{ type: 'User', id: userId }, { type: 'Document', id: userId }],
     }),
-    // Employee-specific endpoints
+  }),
+});
+
+export const employeeApi = createApi({
+  reducerPath: 'employeeApi',
+  baseQuery: createBaseQuery('/api/v1/employees'),
+  tagTypes: ['Employee'],
+  endpoints: (builder) => ({
     getEmployees: builder.query({
-      query: () => '/employees',
+      query: (params?: { departmentId?: string; roleId?: string; shiftId?: string; status?: string; workType?: string; search?: string }) => {
+        const sp = new URLSearchParams();
+        if (params?.departmentId) sp.set('departmentId', params.departmentId);
+        if (params?.roleId) sp.set('roleId', params.roleId);
+        if (params?.shiftId) sp.set('shiftId', params.shiftId);
+        if (params?.status) sp.set('status', params.status);
+        if (params?.workType) sp.set('workType', params.workType);
+        if (params?.search) sp.set('search', params.search);
+        const qs = sp.toString();
+        return qs ? `/?${qs}` : '/';
+      },
       providesTags: ['Employee'],
     }),
     getEmployeeById: builder.query({
-      query: (id) => `/employees/${id}`,
+      query: (id) => `/${id}`,
       providesTags: (result, error, id) => [{ type: 'Employee', id }],
+    }),
+    getEmployeeByEmployeeId: builder.query({
+      query: (employeeId) => `/employee-id/${employeeId}`,
+      providesTags: (result, error, employeeId) => [{ type: 'Employee', id: employeeId }],
     }),
     createEmployee: builder.mutation({
       query: (data) => ({
-        url: '/employees',
+        url: '/',
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Employee', 'User'],
+      invalidatesTags: ['Employee'],
     }),
     updateEmployee: builder.mutation({
       query: ({ id, ...data }) => ({
-        url: `/employees/${id}`,
+        url: `/${id}`,
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'Employee', id }, { type: 'User', id }],
+      invalidatesTags: (result, error, { id }) => [{ type: 'Employee', id }],
     }),
     deleteEmployee: builder.mutation({
       query: (id) => ({
-        url: `/employees/${id}`,
+        url: `/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Employee', 'User'],
+      invalidatesTags: ['Employee'],
+    }),
+    getDepartmentEmployees: builder.query({
+      query: (departmentId) => `/department/${departmentId}`,
+      providesTags: ['Employee'],
+    }),
+    getShiftEmployees: builder.query({
+      query: (shiftId) => `/shift/${shiftId}`,
+      providesTags: ['Employee'],
     }),
   }),
 });
@@ -84,9 +113,15 @@ export const {
   useUpdateUserProfileMutation,
   useUploadDocumentMutation,
   useDeleteDocumentMutation,
+} = userApi;
+
+export const {
   useGetEmployeesQuery,
   useGetEmployeeByIdQuery,
+  useGetEmployeeByEmployeeIdQuery,
   useCreateEmployeeMutation,
   useUpdateEmployeeMutation,
   useDeleteEmployeeMutation,
-} = userApi;
+  useGetDepartmentEmployeesQuery,
+  useGetShiftEmployeesQuery,
+} = employeeApi;

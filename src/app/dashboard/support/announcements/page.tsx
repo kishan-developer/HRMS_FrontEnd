@@ -1,28 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, Megaphone, Calendar, Users, Send, MoreVertical } from 'lucide-react';
 import Button from '@/components/ui/Button/Button';
-
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  type: 'General' | 'Urgent' | 'Information' | 'Policy Update';
-  targetAudience: 'All' | 'Employees' | 'Managers' | 'HR' | 'Support';
-  isPublished: boolean;
-  publishDate?: string;
-  expiryDate?: string;
-  createdBy: string;
-  createdAt: string;
-}
+import { api } from '@/services/api';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
+import ErrorState from '@/components/ui/ErrorState';
+import EmptyState from '@/components/ui/EmptyState';
 
 export default function AnnouncementsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [typeFilter, setTypeFilter] = useState<string>('All');
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const mockAnnouncements: Announcement[] = [
+  const fetchAnnouncements = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get<any>('/announcements');
+      setAnnouncements(res.data?.announcements ?? res.data?.items ?? res.data ?? []);
+    } catch {
+      setError('Failed to load announcements');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchAnnouncements(); }, []);
+
+  if (false) { const mockAnnouncements = [
     { 
       id: 'ANN-001', 
       title: 'System Maintenance - January 20th', 
@@ -80,28 +89,15 @@ export default function AnnouncementsPage() {
     },
   ];
 
-  const typeColors = {
-    General: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    Urgent: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
-    Information: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-    'Policy Update': 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-  };
+  } // end if(false)
 
-  const audienceColors = {
-    All: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-    Employees: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    Managers: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-    HR: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-    Support: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-  };
-
-  const filteredAnnouncements = mockAnnouncements.filter(announcement => {
-    const matchesSearch = announcement.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         announcement.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || 
-                         (statusFilter === 'Published' && announcement.isPublished) ||
-                         (statusFilter === 'Draft' && !announcement.isPublished);
-    const matchesType = typeFilter === 'All' || announcement.type === typeFilter;
+  const filteredAnnouncements = announcements.filter((ann: any) => {
+    const title = (ann.title ?? '').toLowerCase();
+    const content = (ann.content ?? ann.body ?? '').toLowerCase();
+    const matchesSearch = !searchQuery || title.includes(searchQuery.toLowerCase()) || content.includes(searchQuery.toLowerCase());
+    const published = ann.isPublished ?? ann.status === 'published';
+    const matchesStatus = statusFilter === 'All' || (statusFilter === 'Published' && published) || (statusFilter === 'Draft' && !published);
+    const matchesType = typeFilter === 'All' || ann.type === typeFilter;
     return matchesSearch && matchesStatus && matchesType;
   });
 
@@ -206,44 +202,44 @@ export default function AnnouncementsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredAnnouncements.map((announcement) => (
-          <div key={announcement.id} className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex gap-2">
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${typeColors[announcement.type]}`}>
-                  {announcement.type}
-                </span>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${audienceColors[announcement.targetAudience]}`}>
-                  {announcement.targetAudience}
-                </span>
-                {!announcement.isPublished && (
-                  <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full font-medium">
-                    Draft
-                  </span>
-                )}
+      {loading ? (
+        <div className="flex justify-center py-12"><LoadingSpinner /></div>
+      ) : error ? (
+        <ErrorState message={error} onRetry={fetchAnnouncements} />
+      ) : filteredAnnouncements.length === 0 ? (
+        <EmptyState title="No announcements" description="No announcements match your current filters." />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredAnnouncements.map((ann: any) => {
+            const published = ann.isPublished ?? ann.status === 'published';
+            return (
+              <div key={ann._id ?? ann.id} className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 hover:shadow-lg transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex gap-2 flex-wrap">
+                    {ann.type && (
+                      <span className="text-xs px-2 py-1 rounded-full font-medium bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">{ann.type}</span>
+                    )}
+                    {ann.targetAudience && (
+                      <span className="text-xs px-2 py-1 rounded-full font-medium bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">{ann.targetAudience}</span>
+                    )}
+                    {!published && (
+                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full font-medium">Draft</span>
+                    )}
+                  </div>
+                  <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"><MoreVertical className="h-4 w-4" /></button>
+                </div>
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2">{ann.title}</h3>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 line-clamp-2">{ann.content ?? ann.body}</p>
+                <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                  <span>By {ann.createdBy ?? ann.author}</span>
+                  {ann.publishDate && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{ann.publishDate}</span>}
+                  <span>{ann.createdAt ? new Date(ann.createdAt).toLocaleDateString() : ''}</span>
+                </div>
               </div>
-              <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </div>
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-2">{announcement.title}</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 line-clamp-2">{announcement.content}</p>
-            <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-              <div className="flex items-center gap-4">
-                <span>By {announcement.createdBy}</span>
-                {announcement.publishDate && (
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {announcement.publishDate}
-                  </span>
-                )}
-              </div>
-              <span>{announcement.createdAt}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

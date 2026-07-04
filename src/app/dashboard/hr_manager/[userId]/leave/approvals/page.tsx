@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, X, Eye, Search, Calendar, User, FileText, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { useGetPendingLeavesQuery, useUpdateLeaveMutation } from '@/store/services/leaveApi';
+import { useGetLeaveApprovalsQuery, useApproveLeaveMutation, useRejectLeaveMutation } from '@/store/services/leaveApi';
 
 export default function Page() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -10,14 +10,15 @@ export default function Page() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLeaves, setSelectedLeaves] = useState<string[]>([]);
 
-  const { data: pendingLeavesData, isLoading, refetch } = useGetPendingLeavesQuery({});
-  const [updateLeave] = useUpdateLeaveMutation();
+  const { data: pendingLeavesData, isLoading, refetch } = useGetLeaveApprovalsQuery({});
+  const [approveLeave] = useApproveLeaveMutation();
+  const [rejectLeave] = useRejectLeaveMutation();
 
   const pendingLeaves = pendingLeavesData?.data || [];
 
   const handleApprove = async (leaveId: string) => {
     try {
-      await updateLeave({ id: leaveId, status: 'approved' }).unwrap();
+      await approveLeave({ id: leaveId }).unwrap();
       refetch();
     } catch (error) {
       console.error('Error approving leave:', error);
@@ -26,7 +27,7 @@ export default function Page() {
 
   const handleReject = async (leaveId: string) => {
     try {
-      await updateLeave({ id: leaveId, status: 'rejected' }).unwrap();
+      await rejectLeave({ id: leaveId }).unwrap();
       refetch();
     } catch (error) {
       console.error('Error rejecting leave:', error);
@@ -40,7 +41,7 @@ export default function Page() {
 
   const handleBulkApprove = async () => {
     try {
-      await Promise.all(selectedLeaves.map(id => updateLeave({ id, status: 'approved' }).unwrap()));
+      await Promise.all(selectedLeaves.map(id => approveLeave({ id }).unwrap()));
       setSelectedLeaves([]);
       refetch();
     } catch (error) {
@@ -50,7 +51,7 @@ export default function Page() {
 
   const handleBulkReject = async () => {
     try {
-      await Promise.all(selectedLeaves.map(id => updateLeave({ id, status: 'rejected' }).unwrap()));
+      await Promise.all(selectedLeaves.map(id => rejectLeave({ id }).unwrap()));
       setSelectedLeaves([]);
       refetch();
     } catch (error) {
@@ -79,7 +80,8 @@ export default function Page() {
   );
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    const s = status?.toLowerCase();
+    switch (s) {
       case 'approved':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
@@ -139,7 +141,7 @@ export default function Page() {
             <div>
               <p className="text-amber-100 text-sm font-medium">Pending Approvals</p>
               <p className="text-3xl font-bold mt-2">
-                {pendingLeaves.filter((l: any) => l.status === 'pending').length}
+                {pendingLeaves.filter((l: any) => l.status === 'Pending').length}
               </p>
             </div>
             <div className="bg-white/20 p-3 rounded-lg">
@@ -252,15 +254,15 @@ export default function Page() {
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           <span>
-                            {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                            {leave.fromDate ? new Date(leave.fromDate).toLocaleDateString() : 'N/A'} - {leave.toDate ? new Date(leave.toDate).toLocaleDateString() : 'N/A'}
                           </span>
                         </div>
                         <p className="text-xs text-zinc-500 mt-1">
-                          {leave.days || leave.duration || 0} days
+                          {leave.totalDays ?? 0} days
                         </p>
                       </td>
                       <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400 max-w-xs">
-                        <p className="line-clamp-2">{leave.reason || leave.purpose || 'No reason provided'}</p>
+                        <p className="line-clamp-2">{leave.reason || 'No reason provided'}</p>
                       </td>
                       <td className="py-3 px-4">
                         {getStatusBadge(leave.status)}
@@ -342,19 +344,19 @@ export default function Page() {
                 <div>
                   <p className="text-sm text-zinc-500 mb-1">Start Date</p>
                   <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    {new Date(selectedLeave.startDate).toLocaleDateString()}
+                    {selectedLeave.fromDate ? new Date(selectedLeave.fromDate).toLocaleDateString() : 'N/A'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-zinc-500 mb-1">End Date</p>
                   <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    {new Date(selectedLeave.endDate).toLocaleDateString()}
+                    {selectedLeave.toDate ? new Date(selectedLeave.toDate).toLocaleDateString() : 'N/A'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-zinc-500 mb-1">Duration</p>
                   <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    {selectedLeave.days || selectedLeave.duration || 0} days
+                    {selectedLeave.totalDays ?? 0} days
                   </p>
                 </div>
                 <div>
@@ -369,7 +371,7 @@ export default function Page() {
               <div>
                 <p className="text-sm text-zinc-500 mb-1">Reason</p>
                 <p className="text-sm text-zinc-900 dark:text-zinc-100">
-                  {selectedLeave.reason || selectedLeave.purpose || 'No reason provided'}
+                  {selectedLeave.reason || 'No reason provided'}
                 </p>
               </div>
             </div>
@@ -381,7 +383,7 @@ export default function Page() {
               >
                 Close
               </button>
-              {selectedLeave.status === 'pending' && (
+              {selectedLeave.status === 'Pending' && (
                 <>
                   <button
                     onClick={() => { handleReject(selectedLeave._id || selectedLeave.id); setIsModalOpen(false); }}

@@ -54,9 +54,9 @@ export default function ShiftFormModal({ isOpen, onClose, editing, onSave }: Pro
         endTime: editing.endTime,
         breakMinutes: editing.breakMinutes,
         type: editing.type,
-        allowedLateMinutes: editing.allowedLateMinutes,
-        allowedEarlyOutMinutes: editing.allowedEarlyOutMinutes,
-        weeklyOff: editing.weeklyOff,
+        allowedLateMinutes: editing.allowedLateMinutes ?? 0,
+        allowedEarlyOutMinutes: editing.allowedEarlyOutMinutes ?? 0,
+        weeklyOff: editing.weeklyOff ?? [],
         notes: editing.notes ?? '',
         status: editing.status,
       });

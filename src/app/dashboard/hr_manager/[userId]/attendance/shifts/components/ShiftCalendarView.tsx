@@ -28,7 +28,7 @@ export default function ShiftCalendarView({ shifts, assignments }: Props) {
 
   const shiftColor = useMemo(() => {
     const m = new Map<string, string>();
-    shifts.forEach((s, i) => m.set(s.id, SHIFT_COLORS[i % SHIFT_COLORS.length]));
+    shifts.forEach((s, i) => s.id && m.set(s.id, SHIFT_COLORS[i % SHIFT_COLORS.length]));
     return m;
   }, [shifts]);
 
@@ -118,7 +118,7 @@ export default function ShiftCalendarView({ shifts, assignments }: Props) {
                     const s = shifts.find((x) => x.id === a.shiftId);
                     if (!s) return null;
                     return (
-                      <div key={a.id} className="px-1.5 py-1 rounded text-[10px] font-medium truncate text-white" style={{ background: shiftColor.get(s.id) }} title={`${a.empName} · ${s.name}`}>
+                      <div key={a.id} className="px-1.5 py-1 rounded text-[10px] font-medium truncate text-white" style={{ background: s.id ? shiftColor.get(s.id) : undefined }} title={`${a.empName} · ${s.name}`}>
                         {a.empName} · {s.code}
                       </div>
                     );
@@ -153,7 +153,7 @@ export default function ShiftCalendarView({ shifts, assignments }: Props) {
       <div className="mt-4 flex flex-wrap gap-3 text-xs">
         {shifts.slice(0, 6).map((s) => (
           <span key={s.id} className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: shiftColor.get(s.id) }} />
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.id ? shiftColor.get(s.id) : undefined }} />
             {s.name}
           </span>
         ))}

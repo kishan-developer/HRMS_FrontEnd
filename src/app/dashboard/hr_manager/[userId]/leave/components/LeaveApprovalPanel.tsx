@@ -1,6 +1,8 @@
 'use client';
 
-import { X, Check, XCircle, MessageSquare, FileText, Calendar, User, Building2, Briefcase } from 'lucide-react';
+import { useState } from 'react';
+import { X, Check, XCircle, MessageSquare, FileText, Calendar, User } from 'lucide-react';
+import { useApproveLeaveMutation, useRejectLeaveMutation } from '@/store/services/leaveApi';
 
 interface LeaveApprovalPanelProps {
   leaveRequest: any;
@@ -9,16 +11,34 @@ interface LeaveApprovalPanelProps {
 }
 
 export default function LeaveApprovalPanel({ leaveRequest, isOpen, onClose }: LeaveApprovalPanelProps) {
+  const [remarks, setRemarks] = useState('');
+  const [approveLeave, { isLoading: isApproving }] = useApproveLeaveMutation();
+  const [rejectLeave, { isLoading: isRejecting }] = useRejectLeaveMutation();
+
   if (!isOpen) return null;
 
-  const handleApprove = () => {
-    alert('Leave request approved!');
-    onClose();
+  const leaveId = leaveRequest?._id || leaveRequest?.id;
+
+  const handleApprove = async () => {
+    if (!leaveId) return;
+    try {
+      await approveLeave({ id: leaveId, managerNotes: remarks }).unwrap();
+      setRemarks('');
+      onClose();
+    } catch (error) {
+      console.error('Failed to approve leave:', error);
+    }
   };
 
-  const handleReject = () => {
-    alert('Leave request rejected!');
-    onClose();
+  const handleReject = async () => {
+    if (!leaveId) return;
+    try {
+      await rejectLeave({ id: leaveId, rejectionReason: remarks, managerNotes: remarks }).unwrap();
+      setRemarks('');
+      onClose();
+    } catch (error) {
+      console.error('Failed to reject leave:', error);
+    }
   };
 
   const handleRequestInfo = () => {
@@ -49,15 +69,15 @@ export default function LeaveApprovalPanel({ leaveRequest, isOpen, onClose }: Le
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Employee ID</p>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.id || 'EMP001'}</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.employeeId || leaveRequest?.id || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Name</p>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.employee || 'Rahul Sharma'}</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.employeeName || leaveRequest?.employee || leaveRequest?.employeeId || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Department</p>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.department || 'Sales'}</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.department || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Designation</p>
@@ -75,23 +95,23 @@ export default function LeaveApprovalPanel({ leaveRequest, isOpen, onClose }: Le
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Leave Type</p>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.leaveType || 'Casual Leave'}</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.leaveType || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Days</p>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.days || 3} days</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.totalDays || leaveRequest?.days || 'N/A'} days</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Start Date</p>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.from || '01 Jun'}</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.fromDate ? new Date(leaveRequest.fromDate).toLocaleDateString() : (leaveRequest?.startDate || 'N/A')}</p>
               </div>
               <div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">End Date</p>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.to || '03 Jun'}</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.toDate ? new Date(leaveRequest.toDate).toLocaleDateString() : (leaveRequest?.endDate || 'N/A')}</p>
               </div>
               <div className="col-span-2">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">Reason</p>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.reason || 'Personal Work'}</p>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{leaveRequest?.reason || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -128,6 +148,8 @@ export default function LeaveApprovalPanel({ leaveRequest, isOpen, onClose }: Le
             </h3>
             <textarea
               placeholder="Add remarks for this leave request..."
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
               className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-[#94cb3d] focus:border-transparent min-h-[100px]"
             />
           </div>
@@ -136,17 +158,19 @@ export default function LeaveApprovalPanel({ leaveRequest, isOpen, onClose }: Le
           <div className="flex gap-3">
             <button
               onClick={handleApprove}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors"
+              disabled={isApproving || isRejecting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-60"
             >
               <Check className="h-5 w-5" />
-              Approve
+              {isApproving ? 'Approving...' : 'Approve'}
             </button>
             <button
               onClick={handleReject}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+              disabled={isApproving || isRejecting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
             >
               <XCircle className="h-5 w-5" />
-              Reject
+              {isRejecting ? 'Rejecting...' : 'Reject'}
             </button>
             <button
               onClick={handleRequestInfo}

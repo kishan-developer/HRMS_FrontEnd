@@ -5,42 +5,52 @@ import PieChart from '@/components/charts/PieChart';
 import BarChart from '@/components/charts/BarChart';
 import LineChart from '@/components/charts/LineChart';
 import ChartCard from '@/components/ui/Card/ChartCard';
-
-const attendanceData = [
-  { label: 'Present', value: 142, color: '#94cb3d' },
-  { label: 'Absent', value: 8, color: '#ef4444' },
-  { label: 'Late', value: 5, color: '#f59e0b' },
-  { label: 'On Leave', value: 12, color: '#3b82f6' },
-  { label: 'Outdoor', value: 3, color: '#8b5cf6' },
-];
-
-const weeklyTrendData = [
-  { label: 'Mon', value: 195 },
-  { label: 'Tue', value: 198 },
-  { label: 'Wed', value: 192 },
-  { label: 'Thu', value: 200 },
-  { label: 'Fri', value: 198 },
-  { label: 'Sat', value: 45 },
-  { label: 'Sun', value: 12 },
-];
-
-const monthlyComparisonData = [
-  { label: 'Present', value: 142, color: '#94cb3d' },
-  { label: 'Absent', value: 8, color: '#ef4444' },
-  { label: 'Late', value: 5, color: '#f59e0b' },
-];
-
-const departmentData = [
-  { label: 'Real Estate', value: 45 },
-  { label: 'Hotels', value: 32 },
-  { label: 'Saree', value: 28 },
-  { label: 'HO', value: 55 },
-];
+import { useGetAttendanceSummaryQuery, useGetWeeklyTrendQuery, useGetDepartmentAttendanceQuery } from '@/store/services/attendanceApi';
+import { useGetDepartmentAttendanceByLocationQuery } from '@/store/services/dashboardApi';
 
 type TabType = 'overview' | 'trends' | 'comparison';
 
 export default function AttendanceChartCard() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [selectedLocation, setSelectedLocation] = useState<string>('all');
+
+  const { data: summaryRes } = useGetAttendanceSummaryQuery({});
+  const { data: trendRes } = useGetWeeklyTrendQuery({});
+  const { data: deptRes } = useGetDepartmentAttendanceQuery(undefined);
+  const { data: locationDeptRes } = useGetDepartmentAttendanceByLocationQuery(selectedLocation === 'all' ? undefined : selectedLocation);
+
+  const summary = summaryRes?.data || {};
+  const present = summary.present ?? 0;
+  const absent = summary.absent ?? 0;
+  const late = summary.late ?? 0;
+  const onLeave = summary.onLeave ?? summary.leave ?? 0;
+  const outdoor = summary.outdoor ?? 0;
+
+  const attendanceData = [
+    { label: 'Present', value: present, color: '#94cb3d' },
+    { label: 'Absent', value: absent, color: '#ef4444' },
+    { label: 'Late', value: late, color: '#f59e0b' },
+    { label: 'On Leave', value: onLeave, color: '#3b82f6' },
+    { label: 'Outdoor', value: outdoor, color: '#8b5cf6' },
+  ];
+
+  const rawTrend: any[] = trendRes?.data?.trend ?? trendRes?.data ?? [];
+  const weeklyTrendData = rawTrend.map((d: any, i: number) => ({
+    label: d.date ? new Date(d.date).toLocaleDateString('en', { weekday: 'short' }) : `D${i + 1}`,
+    value: d.present ?? d.count ?? 0,
+  }));
+
+  const monthlyComparisonData = [
+    { label: 'Present', value: present, color: '#94cb3d' },
+    { label: 'Absent', value: absent, color: '#ef4444' },
+    { label: 'Late', value: late, color: '#f59e0b' },
+  ];
+
+  const rawDept: any[] = locationDeptRes?.data?.departments ?? locationDeptRes?.data ?? deptRes?.data?.departments ?? deptRes?.data ?? [];
+  const departmentData = rawDept.map((d: any) => ({
+    label: d.name ?? d.departmentName ?? 'Unknown',
+    value: d.totalEmployees ?? d.employeeCount ?? d.present ?? 0,
+  }));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -49,10 +59,15 @@ export default function AttendanceChartCard() {
         title="Attendance Overview"
         action={
           <div className="flex items-center gap-2">
-            <select className="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none">
-              <option>All Locations</option>
-              <option>Site A</option>
-              <option>Site B</option>
+            <select 
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#94cb3d]/50"
+            >
+              <option value="all">All Locations</option>
+              <option value="site-a">Site A</option>
+              <option value="site-b">Site B</option>
+              <option value="site-c">Site C</option>
             </select>
           </div>
         }
@@ -86,7 +101,7 @@ export default function AttendanceChartCard() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               {attendanceData.map((d) => {
-                const percent = ((d.value / 170) * 100).toFixed(1);
+                const percent = ((d.value / (present + absent + late + onLeave + outdoor || 1)) * 100).toFixed(1);
                 return (
                   <div key={d.label} className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
@@ -106,15 +121,15 @@ export default function AttendanceChartCard() {
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700 text-center">
               <div>
                 <div className="text-xs text-zinc-500">Avg</div>
-                <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">141</div>
+                <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{weeklyTrendData.length ? Math.round(weeklyTrendData.reduce((s, d) => s + d.value, 0) / weeklyTrendData.length) : '–'}</div>
               </div>
               <div>
                 <div className="text-xs text-zinc-500">Peak</div>
-                <div className="text-sm font-bold text-[#94cb3d]">Thu</div>
+                <div className="text-sm font-bold text-[#94cb3d]">{weeklyTrendData.length ? weeklyTrendData.reduce((a, b) => b.value > a.value ? b : a).label : '–'}</div>
               </div>
               <div>
-                <div className="text-xs text-zinc-500">Trend</div>
-                <div className="text-sm font-bold text-[#94cb3d]">↑ 2.3%</div>
+                <div className="text-xs text-zinc-500">Days</div>
+                <div className="text-sm font-bold text-[#94cb3d]">{weeklyTrendData.length}</div>
               </div>
             </div>
           </div>

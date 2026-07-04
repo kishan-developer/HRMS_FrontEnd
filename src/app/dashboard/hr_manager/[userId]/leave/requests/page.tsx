@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, X, Download, FileSpreadsheet, FileText } from 'lucide-react';
-import { useGetPendingLeavesQuery, useUpdateLeaveMutation } from '@/store/services/leaveApi';
+import { useGetAllLeavesQuery, useApproveLeaveMutation, useRejectLeaveMutation } from '@/store/services/leaveApi';
 import LeaveRequestsFilters from './components/LeaveRequestsFilters';
 import LeaveRequestsSummaryCards from './components/LeaveRequestsSummaryCards';
 import LeaveRequestsStatusTabs from './components/LeaveRequestsStatusTabs';
@@ -11,21 +11,20 @@ import LeaveRequestDetailDrawer from './components/LeaveRequestDetailDrawer';
 
 export default function Page() {
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
+  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Redux API calls
-  const { data: pendingLeavesData, isLoading, refetch } = useGetPendingLeavesQuery({});
-  const [updateLeave] = useUpdateLeaveMutation();
+  const { data: allLeavesData, isLoading, refetch } = useGetAllLeavesQuery({ pageSize: 200 });
+  const [approveLeave] = useApproveLeaveMutation();
+  const [rejectLeave] = useRejectLeaveMutation();
 
-  const leaveRequests = pendingLeavesData?.data || [];
+  const allLeaves: any[] = allLeavesData?.data?.items || [];
 
   const handleBulkApprove = async () => {
     try {
-      await Promise.all(selectedRequests.map((id) => 
-        updateLeave({ id, status: 'approved' }).unwrap()
-      ));
+      await Promise.all(selectedRequests.map((id) => approveLeave({ id }).unwrap()));
       refetch();
       setSelectedRequests([]);
     } catch (error) {
@@ -35,9 +34,7 @@ export default function Page() {
 
   const handleBulkReject = async () => {
     try {
-      await Promise.all(selectedRequests.map((id) => 
-        updateLeave({ id, status: 'rejected' }).unwrap()
-      ));
+      await Promise.all(selectedRequests.map((id) => rejectLeave({ id }).unwrap()));
       refetch();
       setSelectedRequests([]);
     } catch (error) {
@@ -108,7 +105,7 @@ export default function Page() {
       </div>
 
       {/* Summary Cards */}
-      <LeaveRequestsSummaryCards />
+      <LeaveRequestsSummaryCards leaveRequests={allLeaves} />
 
       {/* Status Tabs */}
       <LeaveRequestsStatusTabs
@@ -123,6 +120,9 @@ export default function Page() {
           selectedRequests={selectedRequests}
           onSelectionChange={setSelectedRequests}
           onRequestClick={handleRequestClick}
+          leaveRequests={allLeaves}
+          onRefetch={refetch}
+          isLoading={isLoading}
         />
       </div>
 
@@ -131,6 +131,8 @@ export default function Page() {
         request={selectedRequest}
         isOpen={isDrawerOpen}
         onClose={() => { setIsDrawerOpen(false); setSelectedRequest(null); }}
+        onApprove={(id: string) => approveLeave({ id }).unwrap().then(refetch)}
+        onReject={(id: string, reason?: string) => rejectLeave({ id, rejectionReason: reason }).unwrap().then(refetch)}
       />
     </div>
   );

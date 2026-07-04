@@ -1,94 +1,99 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Filter, Download, FileText, Calendar, TrendingUp, TrendingDown, DollarSign, Users, Printer, Mail, Clock, CheckCircle2, AlertCircle, BarChart3, PieChart } from 'lucide-react';
+import { Download, FileText, Calendar, DollarSign, Users, BarChart3, TrendingUp, AlertCircle, CheckCircle2, Printer, Clock } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { useGetPayrollSummaryQuery, useGetAllPayrollRecordsQuery } from '@/store/services/payslipApi';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
 
 export default function PayrollReports() {
   const params = useParams();
-  const userId = params.userId as string;
 
+  const now = new Date();
   const [activeTab, setActiveTab] = useState('Overview');
-  const [dateRange, setDateRange] = useState('This Month');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
+  const [dateRange, setDateRange] = useState('This Month');
   const [selectedEmployeeType, setSelectedEmployeeType] = useState('All');
 
-  // Payroll summary data
+  const { data: summaryRes, isLoading: summaryLoading } = useGetPayrollSummaryQuery({ month: now.getMonth() + 1, year: now.getFullYear() });
+  const { data: recordsRes } = useGetAllPayrollRecordsQuery({ month: now.getMonth() + 1, year: now.getFullYear(), page: 1, pageSize: 100 });
+
+  const raw = summaryRes?.data ?? summaryRes ?? {};
   const payrollSummary = {
-    totalPayroll: 8250000,
-    totalEmployees: 125,
-    averageSalary: 66000,
-    taxDeductions: 1245000,
-    netSalaryPaid: 7005000,
-    bonusPaid: 450000,
-    deductions: 825000,
+    totalPayroll: raw.totalGrossSalary ?? raw.totalPayroll ?? 0,
+    totalEmployees: raw.totalEmployees ?? 0,
+    averageSalary: raw.averageSalary ?? (raw.totalEmployees ? Math.round((raw.totalGrossSalary ?? 0) / raw.totalEmployees) : 0),
+    taxDeductions: raw.totalTax ?? raw.taxDeductions ?? 0,
+    netSalaryPaid: raw.totalNetSalary ?? raw.netSalaryPaid ?? 0,
+    bonusPaid: raw.totalBonus ?? raw.bonusPaid ?? 0,
+    deductions: raw.totalDeductions ?? raw.deductions ?? 0,
   };
 
-  // Department-wise payroll
-  const departmentPayroll = [
-    { department: 'Engineering', employees: 35, totalSalary: 2450000, averageSalary: 70000 },
-    { department: 'Sales', employees: 25, totalSalary: 1750000, averageSalary: 70000 },
-    { department: 'Marketing', employees: 20, totalSalary: 1200000, averageSalary: 60000 },
-    { department: 'HR', employees: 15, totalSalary: 900000, averageSalary: 60000 },
-    { department: 'Finance', employees: 12, totalSalary: 840000, averageSalary: 70000 },
-    { department: 'Operations', employees: 18, totalSalary: 1110000, averageSalary: 61667 },
-  ];
+  const rawRecords: any[] = recordsRes?.data?.records ?? recordsRes?.data?.items ?? recordsRes?.data ?? [];
 
-  // Monthly payroll trend
-  const monthlyPayroll = [
-    { month: 'Jan', grossSalary: 8000000, netSalary: 6800000, deductions: 1200000 },
-    { month: 'Feb', grossSalary: 8100000, netSalary: 6885000, deductions: 1215000 },
-    { month: 'Mar', grossSalary: 8250000, netSalary: 7005000, deductions: 1245000 },
-    { month: 'Apr', grossSalary: 8200000, netSalary: 6970000, deductions: 1230000 },
-    { month: 'May', grossSalary: 8300000, netSalary: 7055000, deductions: 1245000 },
-    { month: 'Jun', grossSalary: 8250000, netSalary: 7005000, deductions: 1245000 },
-  ];
+  const deptMap: Record<string, { employees: number; totalSalary: number }> = {};
+  rawRecords.forEach((r: any) => {
+    const dept = r.department ?? 'Other';
+    if (!deptMap[dept]) deptMap[dept] = { employees: 0, totalSalary: 0 };
+    deptMap[dept].employees += 1;
+    deptMap[dept].totalSalary += r.grossSalary ?? r.basicSalary ?? 0;
+  });
+  const departmentPayroll = Object.entries(deptMap).map(([department, v]) => ({
+    department,
+    employees: v.employees,
+    totalSalary: v.totalSalary,
+    averageSalary: v.employees ? Math.round(v.totalSalary / v.employees) : 0,
+  }));
 
-  // Tax summary
-  const taxSummary = {
-    incomeTax: 820000,
-    professionalTax: 125000,
-    providentFund: 300000,
-    esi: 0,
-    totalDeductions: 1245000,
-  };
-
-  // Salary breakdown
-  const salaryBreakdown = [
-    { component: 'Basic Salary', amount: 4125000, percentage: 50 },
-    { component: 'HRA', amount: 1650000, percentage: 20 },
-    { component: 'Special Allowance', amount: 1237500, percentage: 15 },
-    { component: 'Medical Allowance', amount: 412500, percentage: 5 },
-    { component: 'Conveyance Allowance', amount: 412500, percentage: 5 },
-    { component: 'Other Allowances', amount: 412500, percentage: 5 },
-  ];
-
-  // Attendance data
-  const attendanceData = [
-    { department: 'Engineering', present: 95, absent: 3, leave: 2 },
-    { department: 'Sales', present: 92, absent: 5, leave: 3 },
-    { department: 'Marketing', present: 90, absent: 6, leave: 4 },
-    { department: 'HR', present: 96, absent: 2, leave: 2 },
-    { department: 'Finance', present: 94, absent: 3, leave: 3 },
-    { department: 'Operations', present: 91, absent: 5, leave: 4 },
-  ];
-
-  // Deduction details
   const deductionDetails = [
-    { type: 'Income Tax', amount: 820000, employees: 125 },
-    { type: 'Professional Tax', amount: 125000, employees: 125 },
-    { type: 'Provident Fund', amount: 300000, employees: 100 },
+    { type: 'Income Tax', amount: raw.incomeTax ?? 0, employees: raw.totalEmployees ?? 0 },
+    { type: 'Professional Tax', amount: raw.professionalTax ?? 0, employees: raw.totalEmployees ?? 0 },
+    { type: 'Provident Fund', amount: raw.providentFund ?? 0, employees: raw.pfEmployees ?? 0 },
     { type: 'Health Insurance', amount: 150000, employees: 125 },
     { type: 'Loan Recovery', amount: 50000, employees: 10 },
   ];
 
   // Bonus data
-  const bonusData = [
-    { employeeId: 'EMP001', employeeName: 'John Smith', department: 'Engineering', bonusType: 'Performance', amount: 50000, date: '2026-06-15' },
-    { employeeId: 'EMP002', employeeName: 'Sarah Johnson', department: 'HR', bonusType: 'Quarterly', amount: 30000, date: '2026-06-15' },
-    { employeeId: 'EMP003', employeeName: 'Mike Brown', department: 'Sales', bonusType: 'Sales Target', amount: 75000, date: '2026-06-15' },
-    { employeeId: 'EMP004', employeeName: 'Emily Davis', department: 'Engineering', bonusType: 'Performance', amount: 45000, date: '2026-06-15' },
-  ];
+  const bonusData: any[] = (raw.bonusDetails ?? []).map((b: any) => ({
+    employeeId: b.employeeId ?? '',
+    employeeName: b.employeeName ?? b.name ?? '',
+    department: b.department ?? '',
+    bonusType: b.bonusType ?? b.type ?? '',
+    amount: b.amount ?? 0,
+    date: b.date ?? '',
+  }));
+
+  const monthlyPayroll: any[] = (raw.monthlyTrend ?? raw.monthly ?? []).map((m: any) => ({
+    month: m.month ?? '',
+    grossSalary: m.grossSalary ?? m.totalGross ?? 0,
+    netSalary: m.netSalary ?? m.totalNet ?? 0,
+    deductions: m.deductions ?? m.totalDeductions ?? 0,
+  }));
+
+  const salaryBreakdown: any[] = (raw.salaryBreakdown ?? raw.components ?? []).map((c: any) => ({
+    component: c.component ?? c.name ?? '',
+    amount: c.amount ?? 0,
+    percentage: c.percentage ?? 0,
+  }));
+
+  const taxSummary = {
+    incomeTax: raw.incomeTax ?? 0,
+    professionalTax: raw.professionalTax ?? 0,
+    providentFund: raw.providentFund ?? 0,
+    esi: raw.esi ?? 0,
+    totalDeductions: raw.totalDeductions ?? 0,
+  };
+
+  const attendanceData: any[] = departmentPayroll.map(d => ({
+    department: d.department,
+    present: 0,
+    absent: 0,
+    leave: 0,
+  }));
+
+  void selectedDepartment; void setSelectedDepartment;
+
+  if (summaryLoading) return <div className="p-6"><LoadingSpinner /></div>;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {

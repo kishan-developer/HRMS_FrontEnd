@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Search, Plus, Eye, Edit, Trash2, Play, Pause } from 'lucide-react';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5001';
 
 interface Employee {
   id: string;
@@ -34,7 +35,7 @@ export default function EmployeesList() {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5002/api/v1/users', {
+      const response = await fetch(`${BACKEND_URL}/api/v1/users`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -52,7 +53,7 @@ export default function EmployeesList() {
 
   const handleStatusChange = async (employeeId: string, newStatus: string) => {
     try {
-      const response = await fetch(`http://localhost:5002/api/v1/users/${employeeId}/status`, {
+      const response = await fetch(`${BACKEND_URL}/api/v1/users/${employeeId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -72,7 +73,7 @@ export default function EmployeesList() {
   const handleDelete = async (employeeId: string) => {
     if (confirm('Are you sure you want to delete this employee?')) {
       try {
-        const response = await fetch(`http://localhost:5002/api/v1/users/${employeeId}`, {
+        const response = await fetch(`${BACKEND_URL}/api/v1/users/${employeeId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,

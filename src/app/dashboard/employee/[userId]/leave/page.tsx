@@ -5,6 +5,7 @@ import { Calendar, Plus, Clock, CheckCircle, XCircle, Hourglass, X } from 'lucid
 import { useParams } from 'next/navigation';
 import { useGetMyLeaveRequestsQuery, useGetLeaveBalanceQuery, useCreateLeaveMutation, useCancelLeaveMutation } from '@/store/services/leaveApi';
 import { useGetUserQuery } from '@/store/services/userApi';
+import { toast } from 'sonner';
 
 interface LeaveBalance {
   CL: number;
@@ -67,29 +68,26 @@ export default function EmployeeLeave() {
         reason: formData.reason,
       }).unwrap();
 
-      console.log('Leave request result:', result);
-
       if (result.success) {
         setShowApplyForm(false);
         setFormData({ leaveType: 'Casual Leave', fromDate: '', toDate: '', reason: '' });
         refetchLeaves();
-        alert('Leave request submitted successfully!');
+        toast.success('Leave request submitted successfully!');
       }
     } catch (error: any) {
-      console.error('Leave request error:', error);
       const errorMessage = error?.data?.message || error?.message || 'Failed to submit leave request';
-      alert(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
   const handleCancelLeave = async (leaveId: string) => {
-    if (!confirm('Are you sure you want to cancel this leave request?')) return;
-
+    if (!window.confirm('Are you sure you want to cancel this leave request?')) return;
     try {
       await cancelLeave(leaveId).unwrap();
       refetchLeaves();
+      toast.success('Leave request cancelled');
     } catch (error: any) {
-      alert(error.message || 'Failed to cancel leave request');
+      toast.error(error?.data?.message || 'Failed to cancel leave request');
     }
   };
 

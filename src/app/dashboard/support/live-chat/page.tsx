@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MessageSquare, Send, MoreVertical, Search, User, Bot, Clock, Check, CheckCheck } from 'lucide-react';
 import Button from '@/components/ui/Button/Button';
+import { api } from '@/services/api';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
 
 interface Message {
   id: string;
@@ -30,50 +32,30 @@ export default function LiveChatPage() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null);
   const [messageInput, setMessageInput] = useState('');
+  const [chats, setChats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const mockChats: ChatSession[] = [
-    {
-      id: 'CHAT-001',
-      userId: 'EMP-001',
-      userName: 'Alice Smith',
-      status: 'Active',
-      startedAt: new Date('2024-01-15T10:30:00'),
-      messages: [
-        { id: 'MSG-001', sender: 'User', message: 'Hi, I need help with my leave balance', timestamp: new Date('2024-01-15T10:30:00') },
-        { id: 'MSG-002', sender: 'Agent', message: 'Hello Alice! I can help you with that. What specific issue are you facing?', timestamp: new Date('2024-01-15T10:31:00'), isRead: true },
-        { id: 'MSG-003', sender: 'User', message: 'My leave balance is not showing correctly in the app', timestamp: new Date('2024-01-15T10:32:00') },
-      ],
-      lastMessage: 'My leave balance is not showing correctly in the app',
-      lastMessageTime: new Date('2024-01-15T10:32:00'),
-    },
-    {
-      id: 'CHAT-002',
-      userId: 'EMP-002',
-      userName: 'Bob Johnson',
-      status: 'Waiting',
-      startedAt: new Date('2024-01-15T11:00:00'),
-      messages: [
-        { id: 'MSG-004', sender: 'User', message: 'I cannot log in to the system', timestamp: new Date('2024-01-15T11:00:00') },
-      ],
-      lastMessage: 'I cannot log in to the system',
-      lastMessageTime: new Date('2024-01-15T11:00:00'),
-    },
-    {
-      id: 'CHAT-003',
-      userId: 'EMP-003',
-      userName: 'Charlie Brown',
-      status: 'Closed',
-      startedAt: new Date('2024-01-14T15:30:00'),
-      endedAt: new Date('2024-01-14T16:00:00'),
-      messages: [
-        { id: 'MSG-005', sender: 'User', message: 'How do I submit an expense claim?', timestamp: new Date('2024-01-14T15:30:00') },
-        { id: 'MSG-006', sender: 'Agent', message: 'You can submit expense claims from the payroll section. Go to Payroll > Reimbursement and click on New Claim', timestamp: new Date('2024-01-14T15:35:00'), isRead: true },
-        { id: 'MSG-007', sender: 'User', message: 'Thank you!', timestamp: new Date('2024-01-14T15:40:00') },
-      ],
-      lastMessage: 'Thank you!',
-      lastMessageTime: new Date('2024-01-14T15:40:00'),
-    },
-  ];
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get<any>('/support/chat');
+        setChats(res.data?.chats ?? res.data?.items ?? res.data ?? []);
+      } catch {
+        setChats([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  const filteredChats = chats.filter((chat: any) => {
+    const matchesSearch = (chat.userName ?? chat.user?.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (chat.id ?? '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || chat.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const statusColors = {
     Active: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
@@ -87,13 +69,6 @@ export default function LiveChatPage() {
     Closed: <div className="w-2 h-2 bg-zinc-400 rounded-full" />,
   };
 
-  const filteredChats = mockChats.filter(chat => {
-    const matchesSearch = chat.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         chat.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || chat.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
   const handleSendMessage = () => {
     if (!messageInput.trim() || !selectedChat) return;
     // Send message logic would go here
@@ -101,6 +76,8 @@ export default function LiveChatPage() {
   };
 
   const currentChat = selectedChat || filteredChats[0];
+
+  if (loading) return <div className="p-6"><LoadingSpinner /></div>;
 
   return (
     <div className="space-y-6">
@@ -128,7 +105,7 @@ export default function LiveChatPage() {
               <MessageSquare className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{mockChats.filter(c => c.status === 'Active').length}</p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{chats.filter((c: any) => c.status === 'Active').length}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Active Chats</p>
             </div>
           </div>
@@ -139,7 +116,7 @@ export default function LiveChatPage() {
               <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{mockChats.filter(c => c.status === 'Waiting').length}</p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{chats.filter((c: any) => c.status === 'Waiting').length}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Waiting</p>
             </div>
           </div>
@@ -150,7 +127,7 @@ export default function LiveChatPage() {
               <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{mockChats.length}</p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{chats.length}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Today</p>
             </div>
           </div>
@@ -218,7 +195,9 @@ export default function LiveChatPage() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{chat.userName}</span>
                       <div className="flex items-center gap-2">
-                        {statusIcons[chat.status]}
+                        {chat.status === 'Active' ? <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> :
+                         chat.status === 'Waiting' ? <div className="w-2 h-2 bg-yellow-500 rounded-full" /> :
+                         <div className="w-2 h-2 bg-zinc-400 rounded-full" />}
                         <span className="text-xs text-zinc-500 dark:text-zinc-400">
                           {chat.lastMessageTime && new Date(chat.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
@@ -244,8 +223,14 @@ export default function LiveChatPage() {
                   <div>
                     <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{currentChat.userName}</h3>
                     <div className="flex items-center gap-2">
-                      {statusIcons[currentChat.status]}
-                      <span className={`text-xs ${statusColors[currentChat.status]}`}>{currentChat.status}</span>
+                      {currentChat.status === 'Active' ? <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> :
+                       currentChat.status === 'Waiting' ? <div className="w-2 h-2 bg-yellow-500 rounded-full" /> :
+                       <div className="w-2 h-2 bg-zinc-400 rounded-full" />}
+                      <span className={`text-xs ${
+                        currentChat.status === 'Active' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
+                        currentChat.status === 'Waiting' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                      }`}>{currentChat.status}</span>
                     </div>
                   </div>
                 </div>
@@ -255,7 +240,7 @@ export default function LiveChatPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {currentChat.messages.map((message) => (
+                {(currentChat.messages ?? []).map((message: any) => (
                   <div key={message.id} className={`flex ${message.sender === 'Agent' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[70%] rounded-lg p-3 ${
                       message.sender === 'Agent' 

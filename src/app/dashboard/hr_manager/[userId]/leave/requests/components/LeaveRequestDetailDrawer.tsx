@@ -11,9 +11,11 @@ interface LeaveRequestDetailDrawerProps {
   request: any;
   isOpen: boolean;
   onClose: () => void;
+  onApprove?: (id: string, remarks?: string) => Promise<void>;
+  onReject?: (id: string, reason?: string) => Promise<void>;
 }
 
-export default function LeaveRequestDetailDrawer({ request, isOpen, onClose }: LeaveRequestDetailDrawerProps) {
+export default function LeaveRequestDetailDrawer({ request, isOpen, onClose, onApprove, onReject }: LeaveRequestDetailDrawerProps) {
   if (!isOpen) return null;
 
   return (
@@ -44,7 +46,7 @@ export default function LeaveRequestDetailDrawer({ request, isOpen, onClose }: L
               <div className="flex-1 grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">Employee ID</p>
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">EMP-{request?.id || '001'}</p>
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{request?.employeeId || request?.id || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">Name</p>
@@ -147,7 +149,7 @@ export default function LeaveRequestDetailDrawer({ request, isOpen, onClose }: L
           <ApprovalWorkflowPanel />
 
           {/* Approval Actions */}
-          <ApprovalActions request={request} onClose={onClose} />
+          <ApprovalActions request={request} onClose={onClose} onApprove={onApprove} onReject={onReject} />
         </div>
       </div>
     </div>

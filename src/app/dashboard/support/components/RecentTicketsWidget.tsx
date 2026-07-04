@@ -30,13 +30,7 @@ export default function RecentTicketsWidget({ tickets = [] }: RecentTicketsWidge
     Closed: <CheckCircle className="h-4 w-4 text-zinc-400" />,
   };
 
-  const mockTickets: Ticket[] = tickets.length > 0 ? tickets : [
-    { id: 'TKT-001', title: 'Login authentication issue', category: 'Technical', priority: 'High', status: 'Open', createdAt: '2 hours ago' },
-    { id: 'TKT-002', title: 'Payroll discrepancy query', category: 'Payroll', priority: 'Medium', status: 'In Progress', createdAt: '4 hours ago' },
-    { id: 'TKT-003', title: 'Leave balance not updating', category: 'HR', priority: 'High', status: 'Open', createdAt: '5 hours ago' },
-    { id: 'TKT-004', title: 'Mobile app crash on iOS', category: 'Technical', priority: 'Critical', status: 'In Progress', createdAt: '6 hours ago' },
-    { id: 'TKT-005', title: 'Document upload failed', category: 'IT', priority: 'Low', status: 'Resolved', createdAt: '1 day ago' },
-  ];
+  const displayTickets = tickets;
 
   return (
     <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
@@ -46,7 +40,9 @@ export default function RecentTicketsWidget({ tickets = [] }: RecentTicketsWidge
       </div>
       
       <div className="space-y-3">
-        {mockTickets.map((ticket) => (
+        {displayTickets.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center py-4">No recent tickets</p>
+        ) : displayTickets.map((ticket) => (
           <div key={ticket.id} className="flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors">
             <div className="mt-0.5">{statusIcons[ticket.status]}</div>
             <div className="flex-1 min-w-0">

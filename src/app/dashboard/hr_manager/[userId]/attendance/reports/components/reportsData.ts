@@ -57,3 +57,8 @@ export const STATUS_BADGE: Record<ReportStatus, 'success' | 'error' | 'warning' 
   Late: 'warning',
   'Early Out': 'warning',
 };
+
+export const REPORT_ROWS: ReportRow[] = [];
+export const LEAVE_ROWS: LeaveRecord[] = [];
+export const REGULARIZATION_ROWS: RegularizationRecord[] = [];
+export const EMPLOYEE_NAMES: string[] = [];

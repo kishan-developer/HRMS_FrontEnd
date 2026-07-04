@@ -43,6 +43,8 @@ export default function PayrollTable({
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
+  const records = Array.isArray(payrollRecords) ? payrollRecords : [];
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -52,7 +54,7 @@ export default function PayrollTable({
     }
   };
 
-  const sortedRecords = [...payrollRecords].sort((a, b) => {
+  const sortedRecords = [...records].sort((a, b) => {
     const aVal = a[sortField];
     const bVal = b[sortField];
     if (typeof aVal === 'number' && typeof bVal === 'number') {

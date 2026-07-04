@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Download, Settings } from 'lucide-react';
+import { toast } from 'sonner';
+import { api } from '@/services/api';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
 import StructureSummaryWidgets from './components/StructureSummaryWidgets';
 import StructureFilters from './components/StructureFilters';
 import StructureTable from './components/StructureTable';
@@ -12,82 +15,33 @@ export default function Page() {
   const [designation, setDesignation] = useState('');
   const [salaryType, setSalaryType] = useState('');
   const [activeStatus, setActiveStatus] = useState('');
+  const [structures, setStructures] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock salary structures
-  const mockStructures = [
-    {
-      id: '1',
-      structureName: 'IT Staff Structure',
-      structureCode: 'IT-001',
-      salaryCycle: 'monthly' as const,
-      earningsComponents: 6,
-      deductionComponents: 4,
-      totalCTC: 600000,
-      assignedEmployees: 45,
-      status: 'active' as const,
-      effectiveFrom: '2024-01-01',
-    },
-    {
-      id: '2',
-      structureName: 'HR Management Structure',
-      structureCode: 'HR-001',
-      salaryCycle: 'monthly' as const,
-      earningsComponents: 7,
-      deductionComponents: 5,
-      totalCTC: 900000,
-      assignedEmployees: 12,
-      status: 'active' as const,
-      effectiveFrom: '2024-01-01',
-    },
-    {
-      id: '3',
-      structureName: 'Sales Executive Structure',
-      structureCode: 'SALES-001',
-      salaryCycle: 'monthly' as const,
-      earningsComponents: 5,
-      deductionComponents: 3,
-      totalCTC: 450000,
-      assignedEmployees: 68,
-      status: 'active' as const,
-      effectiveFrom: '2024-01-01',
-    },
-    {
-      id: '4',
-      structureName: 'Contract Worker Structure',
-      structureCode: 'CON-001',
-      salaryCycle: 'monthly' as const,
-      earningsComponents: 4,
-      deductionComponents: 2,
-      totalCTC: 300000,
-      assignedEmployees: 85,
-      status: 'active' as const,
-      effectiveFrom: '2024-02-01',
-    },
-    {
-      id: '5',
-      structureName: 'Executive Management Structure',
-      structureCode: 'EXEC-001',
-      salaryCycle: 'monthly' as const,
-      earningsComponents: 8,
-      deductionComponents: 6,
-      totalCTC: 1800000,
-      assignedEmployees: 15,
-      status: 'active' as const,
-      effectiveFrom: '2024-01-01',
-    },
-    {
-      id: '6',
-      structureName: 'Old IT Structure (Deprecated)',
-      structureCode: 'IT-OLD-001',
-      salaryCycle: 'monthly' as const,
-      earningsComponents: 4,
-      deductionComponents: 3,
-      totalCTC: 350000,
-      assignedEmployees: 0,
-      status: 'inactive' as const,
-      effectiveFrom: '2023-01-01',
-    },
-  ];
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get<any>('/payroll/structures');
+        setStructures(res.data?.structures ?? res.data?.items ?? res.data ?? []);
+      } catch {
+        setStructures([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  const filteredStructures = structures.filter((s: any) => {
+    const term = searchTerm.toLowerCase();
+    const matchSearch = !searchTerm || (s.structureName ?? s.name ?? '').toLowerCase().includes(term) || (s.structureCode ?? s.code ?? '').toLowerCase().includes(term);
+    const matchDept = !department || s.department === department;
+    const matchDesignation = !designation || s.designation === designation;
+    const matchSalaryType = !salaryType || s.salaryType === salaryType;
+    const matchStatus = !activeStatus || s.status === activeStatus;
+    return matchSearch && matchDept && matchDesignation && matchSalaryType && matchStatus;
+  });
 
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -97,43 +51,20 @@ export default function Page() {
     setActiveStatus('');
   };
 
-  const handleView = (id: string) => {
-    alert(`View structure ${id}`);
+  const handleView = (_id: string) => toast.info('View structure coming soon');
+  const handleEdit = (_id: string) => toast.info('Edit structure coming soon');
+  const handleAssign = (_id: string) => toast.info('Assign structure coming soon');
+  const handleDuplicate = (_id: string) => toast.info('Duplicate structure coming soon');
+  const handleDelete = async (id: string) => {
+    try { await api.del(`/payroll/structures/${id}`); toast.success('Structure deleted'); setStructures(p => p.filter((s: any) => (s._id ?? s.id) !== id)); } catch {}
   };
+  const handleAddStructure = () => toast.info('Create structure coming soon');
+  const handleBulkAssign = () => toast.info('Bulk assign coming soon');
+  const handleExport = () => toast.info('Export coming soon');
 
-  const handleEdit = (id: string) => {
-    alert(`Edit structure ${id}`);
-  };
+  const handleComponentSettings = () => toast.info('Component settings coming soon');
 
-  const handleAssign = (id: string) => {
-    alert(`Assign structure ${id} to employees`);
-  };
-
-  const handleDuplicate = (id: string) => {
-    alert(`Duplicate structure ${id}`);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this structure?')) {
-      alert(`Structure ${id} deleted`);
-    }
-  };
-
-  const handleAddStructure = () => {
-    alert('Opening create structure form...');
-  };
-
-  const handleBulkAssign = () => {
-    alert('Opening bulk assign dialog...');
-  };
-
-  const handleExport = () => {
-    alert('Exporting structure list...');
-  };
-
-  const handleComponentSettings = () => {
-    alert('Opening payroll component settings...');
-  };
+  if (loading) return <div className="p-6"><LoadingSpinner /></div>;
 
   return (
     <div className="space-y-6">
@@ -198,7 +129,7 @@ export default function Page() {
       {/* Structure Table */}
       <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
         <StructureTable
-          structures={mockStructures}
+          structures={filteredStructures}
           onView={handleView}
           onEdit={handleEdit}
           onAssign={handleAssign}

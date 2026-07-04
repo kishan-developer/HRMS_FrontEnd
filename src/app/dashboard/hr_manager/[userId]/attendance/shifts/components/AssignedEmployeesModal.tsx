@@ -46,10 +46,10 @@ export default function AssignedEmployeesModal({ isOpen, onClose, shift, assignm
                   <td className="px-4 py-2 font-mono text-xs">{a.effectiveTo ?? <span className="text-zinc-400">—</span>}</td>
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-1">
-                      <button type="button" title="Change Shift" onClick={() => onChangeShift(a.id)} className="p-1.5 rounded-md text-zinc-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                      <button type="button" title="Change Shift" onClick={() => a.id && onChangeShift(a.id)} className="p-1.5 rounded-md text-zinc-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20">
                         <ArrowRightLeft className="h-4 w-4" />
                       </button>
-                      <button type="button" title="Remove" onClick={() => onRemove(a.id)} className="p-1.5 rounded-md text-zinc-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <button type="button" title="Remove" onClick={() => a.id && onRemove(a.id)} className="p-1.5 rounded-md text-zinc-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>

@@ -1,42 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Printer } from 'lucide-react';
-
-interface PayrollEntry {
-  id: string;
-  employeeId: string;
-  name: string;
-  department: string;
-  basicSalary: number;
-  deductions: number;
-  netSalary: number;
-  status: 'pending' | 'processed' | 'approved';
-}
+import { toast } from 'sonner';
+import { useGetPayrollByEmployeeQuery } from '@/store/services/payslipApi';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
 
 export default function EmployeePayslip() {
   const params = useParams();
   const router = useRouter();
-  const userId = params.userId as string;
   const employeeId = params.employeeId as string;
 
-  const [payrollData, setPayrollData] = useState<PayrollEntry | null>(null);
-
-  useEffect(() => {
-    // Simulate fetching employee data
-    const mockData: PayrollEntry = {
-      id: employeeId,
-      employeeId: 'EMP001',
-      name: 'John Smith',
-      department: 'Engineering',
-      basicSalary: 80000,
-      deductions: 12000,
-      netSalary: 68000,
-      status: 'processed',
-    };
-    setPayrollData(mockData);
-  }, [employeeId]);
+  const now = new Date();
+  const { data: res, isLoading } = useGetPayrollByEmployeeQuery(
+    { employeeId, month: now.getMonth() + 1, year: now.getFullYear() },
+    { skip: !employeeId }
+  );
+  const raw = res?.data ?? res;
+  const payrollData = raw ? {
+    id: raw._id ?? raw.id ?? employeeId,
+    employeeId: raw.employeeId ?? employeeId,
+    name: raw.employeeName ?? raw.name ?? 'Employee',
+    department: raw.department ?? '',
+    basicSalary: raw.basicSalary ?? raw.grossSalary ?? 0,
+    deductions: raw.totalDeductions ?? raw.deductions ?? 0,
+    netSalary: raw.netSalary ?? 0,
+    status: raw.status ?? 'pending',
+  } : null;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -50,13 +40,10 @@ export default function EmployeePayslip() {
     window.print();
   };
 
-  const handleDownload = () => {
-    alert('Payslip downloaded successfully');
-  };
+  const handleDownload = () => toast.success('Payslip downloaded successfully');
 
-  if (!payrollData) {
-    return <div className="p-8">Loading...</div>;
-  }
+  if (isLoading) return <div className="p-8"><LoadingSpinner /></div>;
+  if (!payrollData) return <div className="p-8 text-zinc-500">No payslip data found for this employee.</div>;
 
   return (
     <div className="p-8">

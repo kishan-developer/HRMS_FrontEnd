@@ -12,9 +12,9 @@ export default function Page() {
   const { data: kpisData, isLoading: kpisLoading } = useGetKPIsQuery({});
   const { data: feedbackData, isLoading: feedbackLoading } = useGetFeedbackQuery({});
 
-  const reviews = reviewsData?.data || [];
-  const kpis = kpisData?.data || [];
-  const feedback = feedbackData?.data || [];
+  const reviews = Array.isArray(reviewsData?.data) ? reviewsData.data : [];
+  const kpis = Array.isArray(kpisData?.data) ? kpisData.data : [];
+  const feedback = Array.isArray(feedbackData?.data) ? feedbackData.data : [];
 
   const calculateAverageRating = () => {
     if (reviews.length === 0) return 0;

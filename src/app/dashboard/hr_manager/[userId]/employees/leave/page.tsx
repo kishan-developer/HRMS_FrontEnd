@@ -1,7 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, FileText, Settings, Download, Users } from 'lucide-react';
+import { Plus, Settings, Download, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { useGetAllLeavesQuery, useApproveLeaveMutation, useRejectLeaveMutation, useCreateLeaveMutation } from '@/store/services/leaveApi';
+import { useGetAllUsersQuery } from '@/store/services/userApi';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
 import LeaveSummaryWidgets from './components/LeaveSummaryWidgets';
 import LeaveFilters from './components/LeaveFilters';
 import LeaveRequestsTable from './components/LeaveRequestsTable';
@@ -22,176 +26,33 @@ export default function Page() {
   const [selectedLeaveRequest, setSelectedLeaveRequest] = useState<any>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  // Mock leave requests
-  const mockLeaveRequests = [
-    {
-      id: '1',
-      employeeName: 'John Doe',
-      employeeId: 'EMP001',
-      department: 'IT',
-      designation: 'Software Engineer',
-      leaveType: 'CL' as const,
-      startDate: '2024-05-25',
-      endDate: '2024-05-25',
-      duration: 1,
-      reason: 'Personal work',
-      hasDocument: false,
-      status: 'approved' as const,
-      approvedBy: 'Jane Smith',
-      actionDate: '2024-05-20',
-      leaveBalance: {
-        cl: { allowed: 12, used: 5, remaining: 7 },
-        pl: { allowed: 15, used: 8, remaining: 7 },
-        sl: { allowed: 6, used: 2, remaining: 4 },
-      },
-      approvalHistory: [
-        { action: 'approved', by: 'Jane Smith', date: '2024-05-20', comment: 'Approved as requested' },
-      ],
-    },
-    {
-      id: '2',
-      employeeName: 'Jane Smith',
-      employeeId: 'EMP002',
-      department: 'HR',
-      designation: 'HR Manager',
-      leaveType: 'PL' as const,
-      startDate: '2024-05-28',
-      endDate: '2024-05-30',
-      duration: 3,
-      reason: 'Family vacation',
-      hasDocument: true,
-      documentUrl: '#',
-      status: 'pending' as const,
-      leaveBalance: {
-        cl: { allowed: 12, used: 3, remaining: 9 },
-        pl: { allowed: 15, used: 5, remaining: 10 },
-        sl: { allowed: 6, used: 1, remaining: 5 },
-      },
-    },
-    {
-      id: '3',
-      employeeName: 'Mike Johnson',
-      employeeId: 'EMP003',
-      department: 'Real Estate',
-      designation: 'Sales Executive',
-      leaveType: 'SL' as const,
-      startDate: '2024-05-30',
-      endDate: '2024-05-30',
-      duration: 1,
-      reason: 'Medical appointment',
-      hasDocument: true,
-      documentUrl: '#',
-      status: 'approved' as const,
-      approvedBy: 'Sarah Williams',
-      actionDate: '2024-05-25',
-      leaveBalance: {
-        cl: { allowed: 12, used: 8, remaining: 4 },
-        pl: { allowed: 15, used: 10, remaining: 5 },
-        sl: { allowed: 6, used: 3, remaining: 3 },
-      },
-      approvalHistory: [
-        { action: 'approved', by: 'Sarah Williams', date: '2024-05-25' },
-      ],
-    },
-    {
-      id: '4',
-      employeeName: 'Sarah Williams',
-      employeeId: 'EMP004',
-      department: 'Finance',
-      designation: 'Accountant',
-      leaveType: 'Maternity' as const,
-      startDate: '2024-06-01',
-      endDate: '2024-08-31',
-      duration: 90,
-      reason: 'Maternity leave',
-      hasDocument: true,
-      documentUrl: '#',
-      status: 'approved' as const,
-      approvedBy: 'Tom Brown',
-      actionDate: '2024-05-15',
-      leaveBalance: {
-        cl: { allowed: 12, used: 2, remaining: 10 },
-        pl: { allowed: 15, used: 3, remaining: 12 },
-        sl: { allowed: 6, used: 1, remaining: 5 },
-      },
-      approvalHistory: [
-        { action: 'approved', by: 'Tom Brown', date: '2024-05-15', comment: 'Maternity leave approved per policy' },
-      ],
-    },
-    {
-      id: '5',
-      employeeName: 'Tom Brown',
-      employeeId: 'EMP005',
-      department: 'Hotels',
-      designation: 'Hotel Manager',
-      leaveType: 'LWP' as const,
-      startDate: '2024-06-05',
-      endDate: '2024-06-05',
-      duration: 1,
-      reason: 'Personal emergency',
-      hasDocument: false,
-      status: 'rejected' as const,
-      rejectedBy: 'Jane Smith',
-      actionDate: '2024-05-20',
-      leaveBalance: {
-        cl: { allowed: 12, used: 6, remaining: 6 },
-        pl: { allowed: 15, used: 7, remaining: 8 },
-        sl: { allowed: 6, used: 2, remaining: 4 },
-      },
-      approvalHistory: [
-        { action: 'rejected', by: 'Jane Smith', date: '2024-05-20', comment: 'Insufficient leave balance, please use paid leave' },
-      ],
-    },
-  ];
+  const { data: leavesRes, isLoading: leavesLoading, refetch } = useGetAllLeavesQuery({
+    status: status || undefined,
+    leaveType: leaveType || undefined,
+  });
+  const { data: usersRes } = useGetAllUsersQuery({});
+  const [approveLeave] = useApproveLeaveMutation();
+  const [rejectLeave] = useRejectLeaveMutation();
+  const [createLeave] = useCreateLeaveMutation();
 
-  // Mock employee balances
-  const mockEmployeeBalances = [
-    {
-      id: '1',
-      name: 'John Doe',
-      employeeId: 'EMP001',
-      department: 'IT',
-      cl: { allowed: 12, used: 5, remaining: 7, carryForward: 2 },
-      pl: { allowed: 15, used: 8, remaining: 7, monthlyAccrual: 1.25 },
-      sl: { allowed: 6, used: 2, remaining: 4 },
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      employeeId: 'EMP002',
-      department: 'HR',
-      cl: { allowed: 12, used: 3, remaining: 9 },
-      pl: { allowed: 15, used: 5, remaining: 10, monthlyAccrual: 1.25 },
-      sl: { allowed: 6, used: 1, remaining: 5 },
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      employeeId: 'EMP003',
-      department: 'Real Estate',
-      cl: { allowed: 12, used: 8, remaining: 4 },
-      pl: { allowed: 15, used: 10, remaining: 5, monthlyAccrual: 1.25 },
-      sl: { allowed: 6, used: 3, remaining: 3 },
-    },
-    {
-      id: '4',
-      name: 'Sarah Williams',
-      employeeId: 'EMP004',
-      department: 'Finance',
-      cl: { allowed: 12, used: 2, remaining: 10 },
-      pl: { allowed: 15, used: 3, remaining: 12, monthlyAccrual: 1.25 },
-      sl: { allowed: 6, used: 1, remaining: 5 },
-    },
-  ];
+  const rawLeaves: any[] = leavesRes?.data?.leaves ?? leavesRes?.data?.items ?? leavesRes?.data ?? [];
+  const leaveRequests = rawLeaves.filter((r: any) => {
+    const name = (r.employeeName ?? r.employee?.name ?? '').toLowerCase();
+    const empId = (r.employeeId ?? r.employee?.employeeId ?? '').toLowerCase();
+    const term = searchTerm.toLowerCase();
+    const matchSearch = !searchTerm || name.includes(term) || empId.includes(term);
+    const matchDept = !department || (r.department ?? r.employee?.department) === department;
+    const matchDesig = !designation || (r.designation ?? r.employee?.designation) === designation;
+    return matchSearch && matchDept && matchDesig;
+  });
 
-  // Mock employees for dropdown
-  const mockEmployees = [
-    { id: '1', name: 'John Doe', employeeId: 'EMP001' },
-    { id: '2', name: 'Jane Smith', employeeId: 'EMP002' },
-    { id: '3', name: 'Mike Johnson', employeeId: 'EMP003' },
-    { id: '4', name: 'Sarah Williams', employeeId: 'EMP004' },
-    { id: '5', name: 'Tom Brown', employeeId: 'EMP005' },
-  ];
+  const rawUsers: any[] = usersRes?.data?.users ?? usersRes?.data?.items ?? usersRes?.data ?? [];
+  const employees = rawUsers.map((u: any) => ({
+    id: u._id ?? u.id,
+    name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.email,
+    employeeId: u.employeeId ?? u._id ?? u.id,
+  }));
+
 
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -204,44 +65,28 @@ export default function Page() {
   };
 
   const handleView = (id: string) => {
-    const request = mockLeaveRequests.find(r => r.id === id);
-    if (request) {
-      setSelectedLeaveRequest(request);
-      setIsDetailsModalOpen(true);
-    }
+    const request = leaveRequests.find((r: any) => (r._id ?? r.id) === id);
+    if (request) { setSelectedLeaveRequest(request); setIsDetailsModalOpen(true); }
   };
 
-  const handleEdit = (id: string) => {
-    alert(`Edit leave request ${id}`);
+  const handleEdit = (_id: string) => toast.info('Edit functionality coming soon');
+
+  const handleApprove = async (id: string) => {
+    try { await approveLeave({ id }).unwrap(); toast.success('Leave approved'); refetch(); } catch {}
   };
 
-  const handleApprove = (id: string) => {
-    alert(`Approve leave request ${id}`);
+  const handleReject = async (id: string, reason: string) => {
+    try { await rejectLeave({ id, reason }).unwrap(); toast.success('Leave rejected'); refetch(); } catch {}
   };
 
-  const handleReject = (id: string, reason: string) => {
-    alert(`Reject leave request ${id}. Reason: ${reason}`);
+  const handleDelete = (_id: string) => toast.info('Delete functionality coming soon');
+
+  const handleAddEntrySubmit = async (data: any) => {
+    try { await createLeave(data).unwrap(); toast.success('Leave entry submitted'); setIsAddEntryOpen(false); refetch(); } catch {}
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this leave request?')) {
-      alert(`Leave request ${id} deleted`);
-    }
-  };
-
-  const handleAddEntrySubmit = (data: any) => {
-    console.log('Add leave entry:', data);
-    alert('Leave entry submitted successfully');
-    setIsAddEntryOpen(false);
-  };
-
-  const handleExportReport = () => {
-    alert('Exporting leave report...');
-  };
-
-  const handleUpdatePolicy = () => {
-    alert('Opening leave policy settings...');
-  };
+  const handleExportReport = () => toast.info('Export coming soon');
+  const handleUpdatePolicy = () => toast.info('Policy settings coming soon');
 
   return (
     <div className="space-y-6">
@@ -310,8 +155,9 @@ export default function Page() {
 
         {/* Leave Requests Table */}
         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+          {leavesLoading ? <LoadingSpinner /> : null}
           <LeaveRequestsTable
-            leaveRequests={mockLeaveRequests}
+            leaveRequests={leaveRequests}
             onView={handleView}
             onEdit={handleEdit}
             onApprove={handleApprove}
@@ -326,7 +172,7 @@ export default function Page() {
         isOpen={isAddEntryOpen}
         onClose={() => setIsAddEntryOpen(false)}
         onSubmit={handleAddEntrySubmit}
-        employees={mockEmployees}
+        employees={employees}
       />
 
       {/* Leave Request Details Modal */}
@@ -344,7 +190,7 @@ export default function Page() {
       <EmployeeLeaveBalancePanel
         isOpen={isBalancePanelOpen}
         onClose={() => setIsBalancePanelOpen(false)}
-        employeeBalances={mockEmployeeBalances}
+        employeeBalances={[]}
       />
     </div>
   );

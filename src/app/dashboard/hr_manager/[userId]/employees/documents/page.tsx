@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Upload, Download, Folder, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Upload, Download } from 'lucide-react';
+import { toast } from 'sonner';
+import { api } from '@/services/api';
+import { useGetAllUsersQuery } from '@/store/services/userApi';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
 import DocumentSummaryWidgets from './components/DocumentSummaryWidgets';
 import DocumentFilters from './components/DocumentFilters';
 import DocumentsTable from './components/DocumentsTable';
@@ -16,142 +20,60 @@ export default function Page() {
   const [expiryStatus, setExpiryStatus] = useState('');
   const [dateRange, setDateRange] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [expiringDocuments, setExpiringDocuments] = useState<any[]>([]);
+  const [expiredDocuments, setExpiredDocuments] = useState<any[]>([]);
+  const [missingDocuments, setMissingDocuments] = useState<any[]>([]);
+  const [docsLoading, setDocsLoading] = useState(true);
 
-  // Mock documents
-  const mockDocuments = [
-    {
-      id: '1',
-      employeeName: 'John Doe',
-      employeeId: 'EMP001',
-      department: 'IT',
-      documentType: 'ID Proof',
-      documentTitle: 'Aadhaar Card',
-      uploadedOn: '2024-01-15',
-      expiryDate: '2029-01-15',
-      status: 'verified' as const,
-      documentUrl: '#',
-    },
-    {
-      id: '2',
-      employeeName: 'Jane Smith',
-      employeeId: 'EMP002',
-      department: 'HR',
-      documentType: 'Address Proof',
-      documentTitle: 'Passport',
-      uploadedOn: '2024-02-20',
-      expiryDate: '2024-06-15',
-      status: 'verified' as const,
-      documentUrl: '#',
-    },
-    {
-      id: '3',
-      employeeName: 'Mike Johnson',
-      employeeId: 'EMP003',
-      department: 'Real Estate',
-      documentType: 'Offer Letter',
-      documentTitle: 'Appointment Letter',
-      uploadedOn: '2024-03-10',
-      status: 'verified' as const,
-      documentUrl: '#',
-    },
-    {
-      id: '4',
-      employeeName: 'Sarah Williams',
-      employeeId: 'EMP004',
-      department: 'Finance',
-      documentType: 'Bank Documents',
-      documentTitle: 'Bank Passbook',
-      uploadedOn: '2024-04-05',
-      expiryDate: '2024-05-20',
-      status: 'verified' as const,
-      documentUrl: '#',
-    },
-    {
-      id: '5',
-      employeeName: 'Tom Brown',
-      employeeId: 'EMP005',
-      department: 'Hotels',
-      documentType: 'ID Proof',
-      documentTitle: 'Driving License',
-      uploadedOn: '2024-01-20',
-      expiryDate: '2024-04-30',
-      status: 'expired' as const,
-      documentUrl: '#',
-    },
-    {
-      id: '6',
-      employeeName: 'Alice Green',
-      employeeId: 'EMP006',
-      department: 'IT',
-      documentType: 'Certificates',
-      documentTitle: 'Degree Certificate',
-      uploadedOn: '2024-05-10',
-      status: 'not-verified' as const,
-      documentUrl: '#',
-    },
-  ];
+  const { data: usersRes } = useGetAllUsersQuery({});
+  const rawUsers: any[] = usersRes?.data?.users ?? usersRes?.data?.items ?? usersRes?.data ?? [];
+  const employees = rawUsers.map((u: any) => ({
+    id: u._id ?? u.id,
+    name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.email,
+    employeeId: u.employeeId ?? u._id ?? u.id,
+  }));
 
-  // Mock missing documents
-  const mockMissingDocuments = [
-    {
-      id: '7',
-      employeeName: 'Robert Davis',
-      employeeId: 'EMP007',
-      department: 'Saree',
-      missingDocuments: ['PAN Card', 'Address Proof', 'Bank Documents'],
-    },
-    {
-      id: '8',
-      employeeName: 'Emily Wilson',
-      employeeId: 'EMP008',
-      department: 'HO',
-      missingDocuments: ['Contract', 'Offer Letter'],
-    },
-  ];
+  useEffect(() => {
+    const fetchDocs = async () => {
+      setDocsLoading(true);
+      try {
+        const [docsRes, expiryRes, missingRes] = await Promise.allSettled([
+          api.get<any>('/documents'),
+          api.get<any>('/documents/expiring'),
+          api.get<any>('/documents/missing'),
+        ]);
+        if (docsRes.status === 'fulfilled') {
+          const d = docsRes.value;
+          setDocuments(d.data?.documents ?? d.data?.items ?? d.data ?? []);
+        }
+        if (expiryRes.status === 'fulfilled') {
+          const e = expiryRes.value;
+          const all: any[] = e.data?.documents ?? e.data?.items ?? e.data ?? [];
+          setExpiringDocuments(all.filter((x: any) => (x.daysUntilExpiry ?? 0) > 0));
+          setExpiredDocuments(all.filter((x: any) => (x.daysUntilExpiry ?? 0) <= 0));
+        }
+        if (missingRes.status === 'fulfilled') {
+          const m = missingRes.value;
+          setMissingDocuments(m.data?.employees ?? m.data?.items ?? m.data ?? []);
+        }
+      } finally {
+        setDocsLoading(false);
+      }
+    };
+    fetchDocs();
+  }, []);
 
-  // Mock expiring documents
-  const mockExpiringDocuments = [
-    {
-      id: '2',
-      employeeName: 'Jane Smith',
-      employeeId: 'EMP002',
-      documentTitle: 'Passport',
-      documentType: 'Address Proof',
-      expiryDate: '2024-06-15',
-      daysUntilExpiry: 25,
-    },
-    {
-      id: '4',
-      employeeName: 'Sarah Williams',
-      employeeId: 'EMP004',
-      documentTitle: 'Bank Passbook',
-      documentType: 'Bank Documents',
-      expiryDate: '2024-05-20',
-      daysUntilExpiry: 0,
-    },
-  ];
-
-  // Mock expired documents
-  const mockExpiredDocuments = [
-    {
-      id: '5',
-      employeeName: 'Tom Brown',
-      employeeId: 'EMP005',
-      documentTitle: 'Driving License',
-      documentType: 'ID Proof',
-      expiryDate: '2024-04-30',
-      daysExpired: 21,
-    },
-  ];
-
-  // Mock employees for dropdown
-  const mockEmployees = [
-    { id: '1', name: 'John Doe', employeeId: 'EMP001' },
-    { id: '2', name: 'Jane Smith', employeeId: 'EMP002' },
-    { id: '3', name: 'Mike Johnson', employeeId: 'EMP003' },
-    { id: '4', name: 'Sarah Williams', employeeId: 'EMP004' },
-    { id: '5', name: 'Tom Brown', employeeId: 'EMP005' },
-  ];
+  const filteredDocuments = documents.filter((doc: any) => {
+    const name = (doc.employeeName ?? doc.employee?.name ?? '').toLowerCase();
+    const title = (doc.documentTitle ?? doc.title ?? '').toLowerCase();
+    const term = searchTerm.toLowerCase();
+    const matchSearch = !searchTerm || name.includes(term) || title.includes(term);
+    const matchType = !documentType || doc.documentType === documentType;
+    const matchDept = !department || (doc.department ?? doc.employee?.department) === department;
+    const matchExpiry = !expiryStatus || doc.status === expiryStatus;
+    return matchSearch && matchType && matchDept && matchExpiry;
+  });
 
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -161,53 +83,33 @@ export default function Page() {
     setDateRange('');
   };
 
-  const handleView = (id: string) => {
-    alert(`View document ${id}`);
+  const handleView = (_id: string) => toast.info('Document viewer coming soon');
+  const handleDownload = (_id: string) => toast.info('Download coming soon');
+  const handleReplace = (_id: string) => toast.info('Replace functionality coming soon');
+
+  const handleVerify = async (id: string) => {
+    try { await api.patch(`/documents/${id}/verify`, {}); toast.success('Document verified'); setDocuments(p => p.map(d => (d._id ?? d.id) === id ? { ...d, status: 'verified' } : d)); } catch {}
   };
 
-  const handleDownload = (id: string) => {
-    alert(`Download document ${id}`);
+  const handleUnverify = async (id: string) => {
+    try { await api.patch(`/documents/${id}/unverify`, {}); toast.success('Document unverified'); setDocuments(p => p.map(d => (d._id ?? d.id) === id ? { ...d, status: 'not-verified' } : d)); } catch {}
   };
 
-  const handleReplace = (id: string) => {
-    alert(`Replace document ${id}`);
+  const handleDelete = async (id: string) => {
+    try { await api.del(`/documents/${id}`); toast.success('Document deleted'); setDocuments(p => p.filter(d => (d._id ?? d.id) !== id)); } catch {}
   };
 
-  const handleVerify = (id: string) => {
-    alert(`Verify document ${id}`);
+  const handleUploadSubmit = async (data: any) => {
+    try { await api.post('/documents', data); toast.success('Document uploaded successfully'); setIsUploadModalOpen(false); } catch {}
   };
 
-  const handleUnverify = (id: string) => {
-    alert(`Unverify document ${id}`);
+  const handleSendReminder = async (empId: string) => {
+    try { await api.post('/documents/reminder', { employeeId: empId }); toast.success('Reminder sent'); } catch {}
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this document?')) {
-      alert(`Document ${id} deleted`);
-    }
-  };
-
-  const handleUploadSubmit = (data: any) => {
-    console.log('Upload document:', data);
-    alert('Document uploaded successfully');
-    setIsUploadModalOpen(false);
-  };
-
-  const handleSendReminder = (employeeId: string) => {
-    alert(`Reminder sent to employee ${employeeId}`);
-  };
-
-  const handleAddDocument = (employeeId: string) => {
-    alert(`Opening document upload for employee ${employeeId}`);
-  };
-
-  const handleExportList = () => {
-    alert('Exporting document list...');
-  };
-
-  const handleBulkUpload = () => {
-    alert('Opening bulk upload dialog...');
-  };
+  const handleAddDocument = (_empId: string) => setIsUploadModalOpen(true);
+  const handleExportList = () => toast.info('Export coming soon');
+  const handleBulkUpload = () => toast.info('Bulk upload coming soon');
 
   return (
     <div className="space-y-6">
@@ -267,8 +169,9 @@ export default function Page() {
 
           {/* Documents Table */}
           <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
+            {docsLoading ? <LoadingSpinner /> : null}
             <DocumentsTable
-              documents={mockDocuments}
+              documents={filteredDocuments}
               onView={handleView}
               onDownload={handleDownload}
               onReplace={handleReplace}
@@ -283,13 +186,13 @@ export default function Page() {
         <div className="lg:col-span-1 space-y-6">
           {/* Expiry Alerts */}
           <ExpiryAlertsPanel
-            expiringDocuments={mockExpiringDocuments}
-            expiredDocuments={mockExpiredDocuments}
+            expiringDocuments={expiringDocuments}
+            expiredDocuments={expiredDocuments}
           />
 
           {/* Missing Documents */}
           <MissingDocumentsSection
-            missingDocuments={mockMissingDocuments}
+            missingDocuments={missingDocuments}
             onSendReminder={handleSendReminder}
             onAddDocument={handleAddDocument}
           />
@@ -301,7 +204,7 @@ export default function Page() {
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onSubmit={handleUploadSubmit}
-        employees={mockEmployees}
+        employees={employees}
       />
     </div>
   );

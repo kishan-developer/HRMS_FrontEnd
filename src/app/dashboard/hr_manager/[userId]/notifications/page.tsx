@@ -1,9 +1,10 @@
-import NotificationsPage from '@/components/Notifications/NotificationsPage';
+import HRNotificationManager from '@/components/Notifications/HRNotificationManager';
 
-export default function HRManagerNotificationsPage({
+export default async function HRManagerNotificationsPage({
   params,
 }: {
-  params: { userId: string };
+  params: Promise<{ userId: string }>;
 }) {
-  return <NotificationsPage userId={params.userId} />;
+  const { userId } = await params;
+  return <HRNotificationManager userId={userId} />;
 }

@@ -78,7 +78,7 @@ export default function HourlyPunchChart({ hourlyPunch }: HourlyPunchChartProps)
           <path d={buildArea(punchOut)} fill="url(#gOut)" />
           <path d={buildPath(punchOut)} fill="none" stroke="#3b82f6" strokeWidth={2.5} strokeLinejoin="round" />
 
-          {hours.map((h, i) => (
+          {hours.map((h: string, i: number) => (
             <g key={h} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
               <rect x={xScale(i) - stepX / 2} y={PAD.top} width={stepX} height={innerH} fill="transparent" />
               <circle cx={xScale(i)} cy={yScale(punchIn[i])} r={hover === i ? 5 : 3} fill="#94cb3d" stroke="white" strokeWidth={2} />

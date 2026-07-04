@@ -1,124 +1,102 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Filter, Download, FileText, Calendar, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight, BarChart3, PieChart, LineChart, Printer, Mail, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Download, FileText, Calendar, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, BarChart3, Printer, AlertCircle, Clock } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { api } from '@/services/api';
+import { LoadingSpinner } from '@/components/ui/LoadingState';
 
 export default function FinancialReports() {
-  const params = useParams();
-  const userId = params.userId as string;
+  void useParams();
 
   const [activeTab, setActiveTab] = useState('Overview');
   const [dateRange, setDateRange] = useState('This Month');
   const [selectedBranch, setSelectedBranch] = useState('All');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [financialYear, setFinancialYear] = useState('2024-2025');
+  const [reportData, setReportData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Financial summary data
+  useEffect(() => {
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get<any>('/reports/financial');
+        setReportData(res.data ?? res);
+      } catch {
+        setReportData({});
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, [dateRange, selectedBranch, selectedDepartment, financialYear]);
+
+  const r = reportData ?? {};
+
   const financialSummary = {
-    totalRevenue: 2540000,
-    totalExpense: 1220000,
-    netProfit: 1320000,
-    taxLiability: 210000,
-    cashBalance: 450000,
-    bankBalance: 1850000,
-    accountsReceivable: 320000,
-    accountsPayable: 180000,
-    gstPayable: 45000,
-    outstandingInvoices: 85000,
+    totalRevenue: r.totalRevenue ?? 0,
+    totalExpense: r.totalExpense ?? 0,
+    netProfit: r.netProfit ?? 0,
+    taxLiability: r.taxLiability ?? 0,
+    cashBalance: r.cashBalance ?? 0,
+    bankBalance: r.bankBalance ?? 0,
+    accountsReceivable: r.accountsReceivable ?? 0,
+    accountsPayable: r.accountsPayable ?? 0,
+    gstPayable: r.gstPayable ?? 0,
+    outstandingInvoices: r.outstandingInvoices ?? 0,
   };
 
-  // Monthly revenue data
-  const monthlyData = [
-    { month: 'Jan', revenue: 180000, expense: 120000, profit: 60000 },
-    { month: 'Feb', revenue: 220000, expense: 140000, profit: 80000 },
-    { month: 'Mar', revenue: 260000, expense: 160000, profit: 100000 },
-    { month: 'Apr', revenue: 240000, expense: 150000, profit: 90000 },
-    { month: 'May', revenue: 280000, expense: 170000, profit: 110000 },
-    { month: 'Jun', revenue: 320000, expense: 180000, profit: 140000 },
-  ];
+  const monthlyData: any[] = r.monthlyData ?? r.monthly ?? [];
+  const expenseBreakdown: any[] = r.expenseBreakdown ?? r.expenses ?? [];
 
-  // Expense breakdown data
-  const expenseBreakdown = [
-    { category: 'Salary', amount: 500000, percentage: 41 },
-    { category: 'Rent', amount: 200000, percentage: 16 },
-    { category: 'Utilities', amount: 100000, percentage: 8 },
-    { category: 'Marketing', amount: 150000, percentage: 12 },
-    { category: 'Travel', amount: 120000, percentage: 10 },
-    { category: 'Operations', amount: 150000, percentage: 13 },
-  ];
-
-  // Profit & Loss data
   const profitLoss = {
-    revenue: 2000000,
-    costOfGoodsSold: 500000,
-    grossProfit: 1500000,
-    operatingExpenses: 400000,
-    netProfit: 1100000,
+    revenue: r.profitLoss?.revenue ?? r.totalRevenue ?? 0,
+    costOfGoodsSold: r.profitLoss?.costOfGoodsSold ?? 0,
+    grossProfit: r.profitLoss?.grossProfit ?? 0,
+    operatingExpenses: r.profitLoss?.operatingExpenses ?? 0,
+    netProfit: r.profitLoss?.netProfit ?? r.netProfit ?? 0,
   };
 
-  // Balance sheet data
   const balanceSheet = {
     assets: {
-      cash: 450000,
-      bank: 1850000,
-      inventory: 320000,
-      accountsReceivable: 320000,
-      fixedAssets: 2800000,
-      total: 5740000,
+      cash: r.balanceSheet?.assets?.cash ?? 0,
+      bank: r.balanceSheet?.assets?.bank ?? 0,
+      inventory: r.balanceSheet?.assets?.inventory ?? 0,
+      accountsReceivable: r.balanceSheet?.assets?.accountsReceivable ?? 0,
+      fixedAssets: r.balanceSheet?.assets?.fixedAssets ?? 0,
+      total: r.balanceSheet?.assets?.total ?? 0,
     },
     liabilities: {
-      loans: 1200000,
-      accountsPayable: 180000,
-      gstLiability: 45000,
-      employeeDues: 85000,
-      total: 1510000,
+      loans: r.balanceSheet?.liabilities?.loans ?? 0,
+      accountsPayable: r.balanceSheet?.liabilities?.accountsPayable ?? 0,
+      gstLiability: r.balanceSheet?.liabilities?.gstLiability ?? 0,
+      employeeDues: r.balanceSheet?.liabilities?.employeeDues ?? 0,
+      total: r.balanceSheet?.liabilities?.total ?? 0,
     },
     equity: {
-      ownerCapital: 4000000,
-      retainedEarnings: 230000,
-      total: 4230000,
+      ownerCapital: r.balanceSheet?.equity?.ownerCapital ?? 0,
+      retainedEarnings: r.balanceSheet?.equity?.retainedEarnings ?? 0,
+      total: r.balanceSheet?.equity?.total ?? 0,
     },
   };
 
-  // Cash flow data
   const cashFlow = {
-    openingBalance: 1200000,
-    cashInflow: 1800000,
-    cashOutflow: 1500000,
-    closingBalance: 1500000,
+    openingBalance: r.cashFlow?.openingBalance ?? 0,
+    cashInflow: r.cashFlow?.cashInflow ?? 0,
+    cashOutflow: r.cashFlow?.cashOutflow ?? 0,
+    closingBalance: r.cashFlow?.closingBalance ?? 0,
   };
 
-  // GST data
   const gstData = {
-    gstCollected: 320000,
-    gstPaid: 180000,
-    netGstLiability: 140000,
+    gstCollected: r.gst?.collected ?? r.gstCollected ?? 0,
+    gstPaid: r.gst?.paid ?? r.gstPaid ?? 0,
+    netGstLiability: r.gst?.netLiability ?? r.netGstLiability ?? 0,
   };
 
-  // Accounts receivable data
-  const receivables = [
-    { customer: 'ABC Corp', invoiceNo: 'INV-001', dueDate: '2026-06-15', amount: 85000, status: 'Current' },
-    { customer: 'XYZ Ltd', invoiceNo: 'INV-002', dueDate: '2026-06-20', amount: 120000, status: 'Due Soon' },
-    { customer: 'PQR Inc', invoiceNo: 'INV-003', dueDate: '2026-06-05', amount: 65000, status: 'Overdue' },
-    { customer: 'LMN Tech', invoiceNo: 'INV-004', dueDate: '2026-06-25', amount: 50000, status: 'Current' },
-  ];
-
-  // Accounts payable data
-  const payables = [
-    { vendor: 'Supplier A', billNo: 'BILL-001', dueDate: '2026-06-10', amount: 45000, status: 'Overdue' },
-    { vendor: 'Supplier B', billNo: 'BILL-002', dueDate: '2026-06-20', amount: 80000, status: 'Pending' },
-    { vendor: 'Supplier C', billNo: 'BILL-003', dueDate: '2026-06-15', amount: 35000, status: 'Partially Paid' },
-    { vendor: 'Supplier D', billNo: 'BILL-004', dueDate: '2026-06-30', amount: 20000, status: 'Pending' },
-  ];
-
-  // Budget vs Actual data
-  const budgetAnalysis = [
-    { category: 'Marketing', budget: 50000, actual: 42000, variance: 8000 },
-    { category: 'Sales', budget: 200000, actual: 240000, variance: 40000 },
-    { category: 'Operations', budget: 150000, actual: 165000, variance: -15000 },
-    { category: 'HR', budget: 100000, actual: 95000, variance: 5000 },
-  ];
+  const receivables: any[] = r.receivables ?? r.accountsReceivableDetails ?? [];
+  const payables: any[] = r.payables ?? r.accountsPayableDetails ?? [];
+  const budgetAnalysis: any[] = r.budgetAnalysis ?? r.budget ?? [];
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -127,6 +105,8 @@ export default function FinancialReports() {
       maximumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (loading) return <div className="p-6"><LoadingSpinner /></div>;
 
   const getStatusColor = (status: string) => {
     switch (status) {
